@@ -9,9 +9,9 @@ extrn	Timer_Int_Setup, Timer_Int_Low, Timer_Random_Number
 psect	data    
 	; ******* dataPM, data in programme memory, and its length *****
 dataPM:    ;    cont, page, xpos, ypos, char, 0   , 1   , 2   , 3   , 4   , 
-	db	0x00, 0x00, 0xB9, 0x40, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
-		0x00, 0x00, 0xBB, 0x40, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
-		0x00, 0x00, 0xBD, 0x40, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e
+	db	0x00, 0x10, 0x00, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
+		0x00, 0x10, 0x01, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
+		0x00, 0x10, 0x02, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e
 
 	dataPM_l   EQU	30	; length of data
 	align	2
@@ -78,7 +78,7 @@ setup:	bcf	CFGS		    ; point to Flash program memory
 	call	Int_Setup
 	call	Timer_Int_Setup	    ; set up timer interrupts (random no.)
 	clrf	TRISC, A
-
+	call	GLCD_Clear	;; clear the GLCD screen
 	goto	start
 	
 	; ******* Main programme ****************************************
@@ -159,15 +159,17 @@ loop_replace:
 	
 	;; reads out the message from program memory to data memory, 
 	;; the FSR2L initially points at 0x00
-	call	GLCD_Clear	;; clear the GLCD screen
 	
+	
+	
+Loop2:	
 	lfsr	2, dataArray
-Loop2:	call	GLCD_Main	;; GLCD_Main runs the game, and we keep branching back to it
+	;call	GLCD_Main	;; GLCD_Main runs the game, and we keep branching back to it
 	call	delay		;;
 	;decfsz	counter2
 	bra	Loop2
-	
-	setf	PORTC, A		;; error handling to show visual sign that the game 
+	movlw	0xff
+	movwf	PORTC, A		;; error handling to show visual sign that the game 
 	goto	$		;; has broken out of the loop
 	
 	
