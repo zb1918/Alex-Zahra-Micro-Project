@@ -17,6 +17,7 @@
       <itemPath>config.S</itemPath>
       <itemPath>keypad.s</itemPath>
       <itemPath>GLCD.S</itemPath>
+      <itemPath>timer.s</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

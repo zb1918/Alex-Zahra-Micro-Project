@@ -1,9 +1,10 @@
 #include <xc.inc>
     
-global  GLCD_Setup, GLCD_Clear, GLCD_Test, LCD_delay_x4us, LCD_delay_ms
-extrn	myArray, delay
+global  GLCD_Setup, GLCD_Clear, LCD_delay_x4us, LCD_delay_ms, GLCD_Main
+extrn	delay
 extrn	Int_Setup
-
+    
+    
 psect	udata_acs   ; named variables in access ram
 LCD_cnt_l:	ds 1   ; reserve 1 byte for variable LCD_cnt_l
 LCD_cnt_h:	ds 1   ; reserve 1 byte for variable LCD_cnt_h
@@ -22,7 +23,9 @@ three:		ds 1
 counter6:	ds 1
 counter7:	ds 1
 LCD_counter2:	ds 1
-    
+no_char:	ds 1
+debugger:	ds 1
+debugger2:	ds 1   
 	
 LCD_CS1	EQU 0	; LCD register select bit
 LCD_CS2	EQU 1	; LCD register select bit
@@ -31,7 +34,9 @@ LCD_RW	EQU 3
 LCD_E	EQU 4	; LCD enable bit
 LCD_RT	EQU 5
 	
-
+control	EQU 0
+page_no	EQU 0
+	
 psect	glcd_code,class=CODE
     
 GLCD_Setup:
@@ -40,6 +45,16 @@ GLCD_Setup:
 	clrf    ANCON1, A
 	clrf    ANCON2, A
 	movlb	0x00
+	movlw	01111011B
+	movwf	max_pos
+	movlw	3
+	movwf	three
+	movlw	2
+	movwf	debugger
+	movlw	0
+	movwf	debugger2
+	
+	
 	clrf    TRISH, A
 	clrf	TRISD, A
 	clrf    PORTH, A
@@ -48,7 +63,7 @@ GLCD_Setup:
 	bsf	LATH, LCD_E
 	movlw   10
 	call	LCD_delay_x4us	; wait 40ms for LCD to start up properly
-	movlw   0x3F	    ; RB0:5 all outputs
+	movlw   0x3F	    ; RD0:5 all outputs
 	movwf	PORTD, A
 	movlw	10
 	call	LCD_delay_x4us
@@ -59,8 +74,7 @@ GLCD_Setup:
 	call	LCD_delay_x4us
 	
 	return
-
-
+	
 LCD_Enable:	    ; pulse enable bit LCD_E for 500ns
 	nop
 	nop
@@ -92,14 +106,14 @@ GLCD_Y_address:
 GLCD_CS1:
 	bsf	LATH, LCD_CS2
 	bcf	LATH, LCD_CS1
-	;movlw	10
-	;call	LCD_delay_x4us
+	movlw	10
+	call	LCD_delay_x4us
 	return
 GLCD_CS2:
 	bsf	LATH, LCD_CS1
 	bcf	LATH, LCD_CS2
-	;movlw	10
-	;call	LCD_delay_x4us
+	movlw	10
+	call	LCD_delay_x4us
 	return
 	
 GLCD_X_address:
@@ -157,161 +171,20 @@ LoopY:
 	bra	LoopY
 	return
 	
-GLCD_Test:
-	call	Int_Setup
-	call	GLCD_Clear
-	movlw	0
-	movwf	counter7
-	movlw	3
-	movwf	counter6
-	movlw	4
-	movwf	counter5
-	movlw	4
-	movwf	three
-	movlw	01000001B
-	movwf	location
-	movlw	01111101B
-	movwf	max_pos
-	call	GLCD_CS1
-	movlw	10111000B
-	call	GLCD_X_address
-Loop3:	
-	movlw	4
-	movwf   LCD_counter, A
-	lfsr	2, myArray
-	movf	location, W
-	addlw	0xFF
-	call	GLCD_Y_address
-	call	delay
-	movlw	0x00
-	call	GLCD_Write
-	call	GLCD_Loop_message
-	incf	location
-	incf	location, W
-	CPFSLT	max_pos
-	bra	Loop3
 
-	bra	GLCD_Tran
-GLCD_Loop_message:
-	movf    POSTINC2, W, A
-	call    GLCD_Write
-	decfsz  LCD_counter, A
-	bra	GLCD_Loop_message
-	return
-GLCD_Tran:
-	call	GLCD_CS1
-	lfsr	2, myArray
-	movf	location, W
-	addlw	0xFF
-	call	GLCD_Y_address
-	call	delay
-	movlw	0x00
-	call	GLCD_Write
-	decfsz	counter5
-	bra	cont
-	bra	run4
-cont:	movff	counter5, LCD_counter
-	call	GLCD_Loop_message
+
 	
-	incf	location
-	
-	call	GLCD_CS2
-	movlw	10111000B
-	call	GLCD_X_address
-	
-run1:	movlw	1
-	CPFSLT	counter7
-	bra	run2
-	lfsr	2, myArray
-	;ADDFSR	2, 3
-	movf	POSTINC2, W, A
-	movf	POSTINC2, W, A
-	movf	POSTINC2, W, A
-	movlw	1
-	movwf	counter6
-	call	GLCD_Tran2
-	incf	counter7
-	bra	GLCD_Tran
-	
-run2:	movlw	2
-	CPFSLT	counter7
-	bra	run3
-	lfsr	2, myArray
-	;ADDFSR	2, 2
-	movf	POSTINC2, W, A
-	movf	POSTINC2, W, A
-	movlw	2
-	movwf	counter6
-	call	GLCD_Tran2
-	incf	counter7
-	bra	GLCD_Tran
-	
-run3:	;goto	$
-	movlw	3
-	CPFSLT	counter7
-	bra	run4
-	lfsr	2, myArray
-	;ADDFSR	2, 1
-	movf	POSTINC2, W, A
-	movlw	3
-	movwf	counter6
-	call	GLCD_Tran2
-	incf	counter7
-	bra	GLCD_Tran
+
+
 	
 
 	
-GLCD_Tran2:
-	movlw	01000000B
-	call	GLCD_Y_address
-Loop4:	movf    POSTINC2, W, A
-	call    GLCD_Write
-	decfsz  counter6, A
-	bra	Loop4
-	return
 
-run4:	call	GLCD_CS2
-	lfsr	2, myArray
-	movlw	4
-	movwf	counter6
-	call	GLCD_Tran2
 
-GLCD_Page2:
-	movlw	01000001B
-	movwf	location2
-Loop6:
-	movlw	4
-	movwf   LCD_counter2, A
-	lfsr	2, myArray
-	movf	location2, W
-	addlw	0xFF
-	call	GLCD_Y_address
-	call	delay
-	movlw	0x00
-	call	GLCD_Write
-	
-
-	call	GLCD_Loop_message2
-	incf	location2
-	incf	location2, W
-	CPFSLT	max_pos
-	bra	Loop6
-	decf	location2
-	movf	location2, W
-	call	GLCD_Clear_4line
-	goto	GLCD_Test
-	goto	$
-	
-GLCD_Loop_message2:
-	movf    POSTINC2, W, A
-	call    GLCD_Write
-	decfsz  LCD_counter2, A
-	bra	GLCD_Loop_message2
-	return
-	
-GLCD_Clear_4line:
+GLCD_Erase:
 	call	GLCD_Y_address
 	movlw	0
+	call	GLCD_Write
 	call	GLCD_Write
 	call	GLCD_Write
 	call	GLCD_Write
@@ -340,11 +213,155 @@ LCD_delay_x4us:		    ; delay given in chunks of 4 microsecond in W
 	call	LCD_delay
 	return
 
+GLCD_Main:
+	movlw	4	    ; number + 1
+	movwf	no_char
+	clrf	FSR2L
+Main_Loop:		    ; moves all characters on screen by one frame
+	dcfsnz	no_char
+	return
+	btfsc	POSTINC2, control	;check control bit to see if err handling needed
+	bra	Main_Tran		; branch to transition code
+	btfss	INDF2, page_no	; since we know we are not mid page, set page 1 or page 2
+	call	GLCD_CS1		;sets chip select 1
+	btfsc	POSTINC2, page_no
+	call	GLCD_CS2		;set chip select 2
+	movf	POSTINC2, W
+	call	GLCD_X_address
+	movf	INDF2, W
+	call	GLCD_Y_address
+	incf	INDF2, F, A
+	movf	POSTINC2, W
+	movf	POSTINC2, W
+	movlw	5
+	movwf	LCD_counter
+	call	GLCD_Send_character
+	call	GLCD_Check
+	bra	Main_Loop
+	
+GLCD_Check:
+	movlw	7
+	subwf	FSR2L, F
+	movf	INDF2, W
+	CPFSLT	max_pos
+	bra	NOT_BITSET
+	bra	BITSET
+NOT_BITSET:
+	movlw	7
+	addwf	FSR2L, F
+	return
+BITSET:	
+	call	Main_Bitset
+	movlw	10
+	addwf	FSR2L, F
+	return
+	
+Main_Tran:
+	call	GLCD_CS1
+	movf	POSTINC2, W
+	movf	POSTINC2, W
+	call	GLCD_X_address
+	movf	INDF2, W
+	call	GLCD_Y_address
+	movlw	1
+	addwf	POSTINC2, A
+	decf	INDF2
+	movf	POSTINC2, W
+	movwf	LCD_counter	; pixels on left side
+	sublw	5	    
+	movwf	LCD_counter2	; pixels on right side
+	cpfslt	three		; right side > 3? yes = no error handling
+	bra	bench		; go to bench if error handling required
+	call	Main_Bitclear
+bench:	
+	call	GLCD_Send_character
+	;decfsz	debugger
+	;bra	skip3
+	;movff	FSR2L, PORTC
+	;goto	$
+	;call	GLCD_CS2
+	movf	LCD_counter2, W
+	addwf	FSR2L
+	;movff	FSR2L, PORTC
+	;movwf	PORTC
+	;call	GLCD_Send_character2
+	;call	GLCD_CS1
+	goto	Main_Loop
+	
+GLCD_Send_character:
+Send_Loop:
+	movf    POSTINC2, W, A
+	call    GLCD_Write
+	decfsz  LCD_counter, A
+	bra	Send_Loop
+	return
+GLCD_Send_character2:
+	movlw	7
+	subwf	FSR2L, F
+	movf	INDF2, W
+	call	GLCD_X_address
+	movlw	7
+	addwf	FSR2L, F
+	movlw	01000000B
+	call	GLCD_Y_address
+Send_Loop2:
+	movf    POSTINC2, W, A
+	call    GLCD_Write
+	decfsz  LCD_counter2, A
+	bra	Send_Loop2
+	return
+    
+Main_Bitset:
+	movlw	2
+	subwf	FSR2L
+	btfss	INDF2, page_no
+	bra	skip2
+	btfsc	INDF2, page_no
+	goto	Main_Reset
+	
+skip2:	movlw	1
+	subwf	FSR2L
+	bsf	INDF2, control
+	return
+	
+Main_Bitclear:
+	movlw	5		; move 5 to W reg
+	subwf	FSR2L		; subtract 5 to point back to control bit
+	bcf	POSTINC2, control	; clear control bit
+	bsf	INDF2, page_no
+	movlw	2
+	addwf	FSR2L
+	movlw	01000000B
+	movwf	POSTINC2, F, A
+	movlw	5
+	movwf	POSTINC2
+	return
+	
+	
+
+	
+Main_Reset:
+	movlw	1
+	subwf	FSR2L, F, A
+	clrf	POSTINC2
+	clrf	POSTINC2
+	movlw	1
+	addwf	FSR2L
+	movlw	01000000B
+	movwf	POSTINC2
+	movlw	5
+	movwf	INDF2, F, A
+	movlw	4
+	subwf	FSR2L
+	movlw	01111011B
+	call	GLCD_Erase
+	bsf	debugger2, 0
+	return
+	
+	
 LCD_delay:			; delay routine	4 instruction loop == 250ns	    
 	movlw 	0x00		; W=0
 lcdlp1:	decf 	LCD_cnt_l, F, A	; no carry when 0x00 -> 0xff
 	subwfb 	LCD_cnt_h, F, A	; no carry when 0x00 -> 0xff
 	bc 	lcdlp1		; carry, then loop again
 	return			; carry reset so return
-	
-	

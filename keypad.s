@@ -2,7 +2,7 @@
 
 global  Key_Setup, Key_Column, Key_Row
 global	Int_Setup, B_Int
-extrn	LCD_delay_x4us, LCD_delay_ms, GLCD_Test
+extrn	LCD_delay_x4us, LCD_delay_ms
 extrn	delay
 psect	udata_acs   ; named variables in access ram
 Key_Rdata:ds 1
@@ -206,8 +206,8 @@ Int_Setup:
 	bcf	RBPU
 	movlw	0x0F
 	movwf	TRISB
-	clrf	TRISJ
-	clrf	PORTJ
+	;clrf	TRISJ
+	;clrf	PORTJ
 	clrf	PORTB
 	bcf	INT0IF
 	bcf	INTEDG0
