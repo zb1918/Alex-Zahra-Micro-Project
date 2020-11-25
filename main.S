@@ -11,9 +11,11 @@ psect	data
 dataPM:    ;    cont, page, xpos, ypos, char, 0   , 1   , 2   , 3   , 4   , 
 	db	0x00, 0x10, 0x01, 0x00, 0x00, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
 		0x00, 0x10, 0x02, 0x0a, 0x01, 0x00, 0x84, 0x82, 0xff, 0x80,\
-		0x00, 0x10, 0x03, 0x20, 0x02, 0x00, 0xc2, 0xa1, 0x91, 0x8e
+		0x00, 0x10, 0x03, 0x20, 0x02, 0x00, 0xc2, 0xa1, 0x91, 0x8e,\
+		0x00, 0x10, 0x04, 0x0a, 0x02, 0x00, 0x42, 0x81, 0x89, 0x76,\
+		0x00, 0x10, 0x05, 0x37, 0x02, 0x00, 0x1f, 0x90, 0xff, 0x90
 		
-	dataPM_l   EQU	30	; length of data
+	dataPM_l   EQU	50	; length of data
 	align	2
 pixelPM:
 	db	0x7e, 0x81, 0x81, 0x7e,\
@@ -50,6 +52,7 @@ delay_count2:	    ds 1
 delay_count3:	    ds 1
 random_number:	    ds 1
 data_pos:	    ds 1
+char_pos:	    ds 1
 pixel_byte:	    ds 1
 pixel_count:	    ds 1
     
@@ -113,7 +116,7 @@ pixel_loop:
 	
 	
 replace_data_master: ; maybe can call externally?	
-	movlw	3	
+	movlw	5			; number of characters
 	movwf	character_count_max, A	; replacement goal
 	movlw	0
 	movwf	character_count, A	; how many of the characters have been replaced?
@@ -127,15 +130,24 @@ replace_data:
 	mulwf	character_count, A	; multiply by 4 to obtain the reqired sub array of data
 	movff	PRODL, data_pos, A	; data_pos now contains relative pos to pixelArray
 	movlw	6		; this is pixel start position relative to beginning of data array
-	;movlw	5
+	
 	addwf	data_pos, A	; data_pos now contains relative pos to dataArray
 	
 	call	Timer_Random_Number ; place random number in W
+	movwf	random_number, A
+	
+	movff	data_pos, char_pos, A	
+	movlw	2
+	subwf	char_pos, W, A
+	movff	random_number, PLUSW2, A
+	
+	lfsr	2, dataArray
+
+	
 	;movwf	POSTINC2, A
 	;incf	data_pos, A
 	
 	;movwf	PORTC, A
-	movwf	random_number, A
 	movlw	4		    	    
 	mulwf	random_number, A	    ; multiply by 4 to obtain the reqired sub array of pixels
 	movff	PRODL, random_number, A  ; random_number is now rel pos to pixelArray
@@ -174,7 +186,7 @@ Loop2:
 	
 	
 
-delay:	movlw	0x44
+delay:	movlw	0x55
 	movwf	delay_count1, A
 	movwf	delay_count2, A
 	movwf	delay_count3, A

@@ -168,7 +168,7 @@ LCD_Set_Z:		    ; sets the starting position (unused)
 	return
     
 GLCD_Main:
-	movlw	3	    ; number of characters (i.e full numbers)
+	movlw	5	    ; number of characters (i.e full numbers)
 	movwf	chars, A
 char_test:
 	call 	character_loop
