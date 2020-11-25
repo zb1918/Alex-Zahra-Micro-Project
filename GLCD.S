@@ -6,28 +6,28 @@ extrn	Int_Setup
     
     
 psect	udata_acs   ; named variables in access ram
-LCD_cnt_l:	ds 1   ; reserve 1 byte for variable LCD_cnt_l
-LCD_cnt_h:	ds 1   ; reserve 1 byte for variable LCD_cnt_h
-LCD_cnt_ms:	ds 1   ; reserve 1 byte for ms counter
-LCD_tmp:	ds 1   ; reserve 1 byte for temporary use
-    LCD_cs:	ds 1
-    LCD_x:	ds 1
-    LCD_y:	ds 1
-    LCD_z:	ds 1
-    CS1:	ds 1
-    CS2:	ds 1
-    pixel_count:    ds 1
-    pixel_y_start:  ds 1
-    pixel_y_total:  ds 1
-    pixel_y:	    ds 1
-    mid_y:	ds 1
-    max_y:	ds 1
-    chars:	ds 1
-    LCD_char_x:	ds 1
-    LCD_counter_x:  ds 1
-    LCD_counter_y:  ds 1
+LCD_cnt_l:	ds 1	; reserve 1 byte for variable LCD_cnt_l
+LCD_cnt_h:	ds 1	; reserve 1 byte for variable LCD_cnt_h
+LCD_cnt_ms:	ds 1	; reserve 1 byte for ms counter
+LCD_tmp:	ds 1	; reserve 1 byte for temporary use
+LCD_cs:		ds 1	; reserve 1 byte for cs number 
+			; (10 or 01 for 1 or 2 respectively)
+LCD_x:		ds 1	; reserve 1 byte for x pos, 3 bits
+LCD_y:		ds 1	; reserve 1 byte for y pos, 6 bits
+LCD_z:		ds 1	; reserve 1 byte for  z pos, 6 bits
+CS1:		ds 1	; reserve 1 byte for 10B
+CS2:		ds 1	; reserve 1 byte for 01B
+pixel_count:    ds 1	; reserve 1 byte to count pixels in a chaaracter
+pixel_y_start:  ds 1	; reserve 1 byte for character y start
+pixel_y_total:  ds 1	; reserve 1 byte for pixel y
+pixel_y:	ds 1	; reserve 1 byte for pixel AND 63d
+mid_y:		ds 1	; reserve 1 byte for 63d
+max_y:		ds 1	; reserve 1 byte for 128d
+chars:		ds 1	; reserve 1 byte for number of characters
+LCD_char_x:	ds 1	; reserve 1 byte for x pos of character
+LCD_counter_x:  ds 1	; reserve 1 byte for LCD_Clear loop over x
+LCD_counter_y:  ds 1	; reserve 1 byte for LCD_Clear loop over y
     
-LCD_RS	EQU 2	; LCD register select bit
 LCD_E	EQU 4	; LCD enable bit
 	
 psect	glcd_code,class=CODE
@@ -42,131 +42,131 @@ GLCD_Setup:
 	clrf	TRISD, A
 	clrf    PORTH, A
 	clrf	PORTD, A
-	movlw   10
-	call	LCD_delay_ms
 	
-	movlw	64
+	movlw   10
+	call	LCD_delay_ms	; allow some time for PORTs and LATs to set
+	
+	movlw	64	    ; setting the mid and edge values for the GLCD 
 	movwf	mid_y, A
 	movlw	128
 	movwf	max_y, A
 	
-	movlw	00000010B
+	movlw	00000010B   ; to allow for movff    CS1, LCD_cs, A
 	movwf	CS1, A
 	movlw	00000001B
 	movwf	CS2, A
 	
 	movlw	0x0
-	call	LCD_Set_CS
+	call	LCD_Set_CS  ; enable both halves of the display (both CS)
 	
 
-	movlw	00111111B
+	movlw	00111111B   ; init GLCD
 	call	LCD_Send_Byte_D
 	call	LCD_SetMode_Instruction
-	movlw   10
-	call	LCD_delay_ms
 	call	LCD_Enable
+	
 	movlw	10
-	call	LCD_delay_x4us
+	call	LCD_delay_x4us	; allow somee time for set up
 	
 	return
 	
 GLCD_Clear:
-	movlw	00000001B
+	movlw	00000001B	; Clear CS 2
 	call	LCD_Set_CS
-	call	lcdclrlp
+	call	LCD_Clear
 	
-	movlw	00000010B
+	movlw	00000010B	; Clear CS 1
 	call	LCD_Set_CS
-	call	lcdclrlp
+	call	LCD_Clear
 	
 	return	
-lcdclrlp:
+LCD_Clear:
 	movlw	0x0
-	movwf	LCD_counter_x, A
-	call	lcdclrlp1
+	movwf	LCD_counter_x, A    ; Set x to 0 before starting
+	call	LCD_Clear_x
 	return	
-lcdclrlp1:
+LCD_Clear_x:			    ; Loop over all x 
 	movlw	0x0
 	movwf	LCD_counter_y, A
 	
 	movf	LCD_counter_x, W, A
-	call	LCD_Set_X
-	incf	LCD_counter_x, A
+	call	LCD_Set_X	    ; Set X
+	incf	LCD_counter_x, A    ; Incr X
 	
-	call	lcdclrlp2
+	call	LCD_Clear_y	    ; Loop over all y
 	
-	movlw	8
+	movlw	8		    ; Stop at x = 8
 	cpfseq	LCD_counter_x, A
-	bra	lcdclrlp1
+	bra	LCD_Clear_x
 	
 	return	
-lcdclrlp2:
-	call	LCD_Send_Zeroes
+LCD_Clear_y:			    ; Loop over all y
+	call	LCD_Send_Zeroes	    ; Clear byte
 	incf	LCD_counter_y, A
-	movlw	63
+	movlw	64		    ; Stop at x = 64
 	cpfseq	LCD_counter_y, A
-	bra	lcdclrlp2
+	bra	LCD_Clear_y
 	return	
 LCD_Send_Zeroes:
-	call	LCD_SetMode_Data
+	call	LCD_SetMode_Data    ; Set mode to data
 	movlw	00000000B
 	call	LCD_Send_Byte_D
-	call	LCD_Enable
-	call	LCD_SetMode_Instruction
+	call	LCD_Enable	    ; Send B and H to LCD
+	call	LCD_SetMode_Instruction	; avoid future errors, set RS back low
 	return
     
-LCD_Send_Byte_D:
+LCD_Send_Byte_D:	    ; are thesse really necessary? just sending to LATX
 	movwf	LATD, A
 	return
 LCD_Send_Byte_H:
 	movwf	LATH, A
 	return
-	
+
 LCD_SetMode_Data:
-	movlw	00110100B
-	iorwf	LCD_cs, W, A
+	movlw	00110100B	; rst high, e high, rs high
+	iorwf	LCD_cs, W, A	; include the cs bit at the end (10 or 01)
 	call	LCD_Send_Byte_H
 	return
 	
 LCD_SetMode_Instruction:
-	movlw	00110000B
-	iorwf	LCD_cs, W, A
+	movlw	00110000B	; rst high, e high, rs low
+	iorwf	LCD_cs, W, A	; include the cs bit at the end (10 or 01)
 	call	LCD_Send_Byte_H
 	return		
 	
-LCD_Set_CS:
-	movwf	LCD_cs, A
-	return
+LCD_Set_CS:		    ; W must contain 1d or 2d
+	movwf	LCD_cs, A   ; store the cs#, note this only stored and not sent
+	return		    ; to the lcd immediately, sends at next instruction
 	
-LCD_Set_X:
+LCD_Set_X:		    ; sets row (page)
 	movwf	LCD_x, A
-	movlw	10111000B
-	iorwf	LCD_x, W, A
+	movlw	10111000B   ; instruction for set x
+	iorwf	LCD_x, W, A ; add on the address on the end (last 3 bits)
 	call	LCD_Send_Byte_D
 	call	LCD_SetMode_Instruction
 	call	LCD_Enable
 	return
 	
-LCD_Set_Y:
-	movwf	LCD_y, A
-	movlw	01000000B
-	iorwf	LCD_y, W, A
+LCD_Set_Y:		    ; sets column
+	movwf	LCD_y, A    
+	movlw	01000000B   ; instruction for set y
+	iorwf	LCD_y, W, A ; add on the address on the end (last 6 bits)
 	call	LCD_Send_Byte_D
 	call	LCD_SetMode_Instruction
 	call	LCD_Enable
 	return
 	
-LCD_Set_Z:
+LCD_Set_Z:		    ; sets the starting position (unused) 
 	movwf	LCD_z, A
-	movlw	11000000B
-	iorwf	LCD_z, W, A
+	movlw	11000000B   ; instruction for set z
+	iorwf	LCD_z, W, A ; add on the address on the end (last 6 bits)
 	call	LCD_Send_Byte_D
 	call	LCD_SetMode_Instruction
 	call	LCD_Enable
 	return
     
 GLCD_Main:
-	movlw	3
+	movlw	3	    ; number of characters (i.e full numbers)
 	movwf	chars, A
 char_test:
 	call 	character_loop
@@ -175,10 +175,10 @@ char_test:
 	return
 	
 character_loop:
-	movf	POSTINC2, A	; control
+	movf	POSTINC2, A	; control (unused)
 	movf	POSTINC2, A	; cs should init as 10
 	
-	movff	POSTINC2, LCD_char_x, A	; x 	
+	movff	POSTINC2, LCD_char_x, A	; x stored for future use for character	
 	
 	movf	INDF2, W, A	; y
 	movwf	pixel_y_start, A
@@ -207,16 +207,18 @@ pixel_loop:
 	
 	movf	pixel_y_total, W, A	; extract total for detail handling
 	
-	cpfsgt	mid_y, A	    ; exec next line if pixel_y_total >= 64
-	movff	CS2, LCD_cs, A	    ; CS2
+	cpfsgt	mid_y, A		; exec next line if pixel_y_total >= 64
+	movff	CS2, LCD_cs, A		; CS2
 	
-	cpfsgt	max_y, A	    ; exec next line if pixel_y_total >= 128
-	movff	CS1, LCD_cs, A	    ; CS1
-	
+	cpfsgt	max_y, A		; exec next line if pixel_y_total >= 128
+	movff	CS1, LCD_cs, A		; CS1
+	; note : order of operations is crucial; if y > 128, then y > 64
+	; must take care not to set CS2 for y > 128
 
 	
 	movf	pixel_y, W, A	    
-	call	send_pixel	    ; use ANDed y position
+	call	send_pixel	    ; use ANDed y position to avoid errors  
+				    ; when Set_Y IORs with 01000000B
 	
 	incf	pixel_count, A	    ; next pixel
 	movlw	5
@@ -225,25 +227,25 @@ pixel_loop:
 	
 	return
 	
-send_pixel:
+send_pixel:			    ; W register should contain ANDed y position
 	call	LCD_Set_Y	    ; set Y to W register
 	movf	LCD_char_x, W, A
-	call	LCD_Set_X
+	call	LCD_Set_X	    ; set X, this is required if cs# has changed
 	
 	movf	POSTINC2, W, A	    ; pixel to be sent in W
 	call	LCD_Send_Byte_D	    ; send to D
 	call	LCD_SetMode_Data    ; set to data mode (RS high)
 	call	LCD_Enable	    ; pulse enable to send to GLCD
-	call	LCD_SetMode_Instruction	; set RS low to avoid errors
+	call	LCD_SetMode_Instruction	; set RS low to avoid future errors
 	return
 	
 	
     
 
 	
-LCD_Enable:	    ; pulse enable bit LCD_E for 500ns
+LCD_Enable:			     ; pulse enable bit LCD_E for 500ns
 	movlw	10
-	call	LCD_delay_x4us
+	call	LCD_delay_x4us	    ; delay for 40us
 	nop
 	nop
 	nop
@@ -252,7 +254,7 @@ LCD_Enable:	    ; pulse enable bit LCD_E for 500ns
 	nop
 	nop
 	nop
-	bcf	LATH, LCD_E, A	    ; Take enable high
+	bcf	LATH, LCD_E, A	    ; Take enable low
 	nop
 	nop
 	nop
@@ -260,7 +262,7 @@ LCD_Enable:	    ; pulse enable bit LCD_E for 500ns
 	nop
 	nop
 	nop
-	bsf	LATH, LCD_E, A	    ; Writes data to LCD
+	bsf	LATH, LCD_E, A	    ; Take enable back high
 	return
     
 
