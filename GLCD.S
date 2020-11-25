@@ -14,13 +14,19 @@ LCD_tmp:	ds 1   ; reserve 1 byte for temporary use
     LCD_x:	ds 1
     LCD_y:	ds 1
     LCD_z:	ds 1
+    CS1:	ds 1
+    CS2:	ds 1
     pixel_count:    ds 1
     pixel_y_start:  ds 1
+    pixel_y_total:  ds 1
+    pixel_y:	    ds 1
     mid_y:	ds 1
     max_y:	ds 1
     chars:	ds 1
+    LCD_char_x:	ds 1
     LCD_counter_x:  ds 1
     LCD_counter_y:  ds 1
+    
 LCD_RS	EQU 2	; LCD register select bit
 LCD_E	EQU 4	; LCD enable bit
 	
@@ -36,7 +42,7 @@ GLCD_Setup:
 	clrf	TRISD, A
 	clrf    PORTH, A
 	clrf	PORTD, A
-	movlw   40
+	movlw   10
 	call	LCD_delay_ms
 	
 	movlw	64
@@ -44,8 +50,10 @@ GLCD_Setup:
 	movlw	128
 	movwf	max_y, A
 	
-	movlw	4
-	movwf	chars, A
+	movlw	00000010B
+	movwf	CS1, A
+	movlw	00000001B
+	movwf	CS2, A
 	
 	movlw	0x0
 	call	LCD_Set_CS
@@ -54,39 +62,22 @@ GLCD_Setup:
 	movlw	00111111B
 	call	LCD_Send_Byte_D
 	call	LCD_SetMode_Instruction
-	movlw   40
+	movlw   10
 	call	LCD_delay_ms
 	call	LCD_Enable
-	movlw	40
+	movlw	10
 	call	LCD_delay_x4us
 	
 	return
 	
 GLCD_Clear:
-	movlw	00000010B
-	call	LCD_Set_CS
-	call	lcdclrlp
-	
 	movlw	00000001B
 	call	LCD_Set_CS
 	call	lcdclrlp
 	
-	;;;;;;;;;;;;;;;;;;;
-	
-	movlw	00000000B
-	call	LCD_Set_X
-	movlw	00000000B
-	call	LCD_Set_Y
-	movlw	00000000B
-	call	LCD_Set_Z
-
-	
-	
-	movlw	0xf0
-	call	LCD_Send_Byte_D
-	call	LCD_SetMode_Data
-	call	LCD_Enable
-	
+	movlw	00000010B
+	call	LCD_Set_CS
+	call	lcdclrlp
 	
 	return	
 lcdclrlp:
@@ -104,7 +95,7 @@ lcdclrlp1:
 	
 	call	lcdclrlp2
 	
-	movlw	7
+	movlw	8
 	cpfseq	LCD_counter_x, A
 	bra	lcdclrlp1
 	
@@ -132,13 +123,13 @@ LCD_Send_Byte_H:
 	return
 	
 LCD_SetMode_Data:
-	movlw	00010100B
+	movlw	00110100B
 	iorwf	LCD_cs, W, A
 	call	LCD_Send_Byte_H
 	return
 	
 LCD_SetMode_Instruction:
-	movlw	00010000B
+	movlw	00110000B
 	iorwf	LCD_cs, W, A
 	call	LCD_Send_Byte_H
 	return		
@@ -175,62 +166,75 @@ LCD_Set_Z:
 	return
     
 GLCD_Main:
+	movlw	3
+	movwf	chars, A
+char_test:
+	call 	character_loop
 	decfsz	chars, A
-	call	character_loop
+	bra	char_test
 	return
 	
 character_loop:
-	movf	POSTINC2, W, A	; control
-	movf	POSTINC2, W, A	; cs should init as 10
-	call	LCD_Set_CS
-	movf	POSTINC2, W, A	; x should init as 0
-	call	LCD_Set_X
+	movf	POSTINC2, A	; control
+	movf	POSTINC2, A	; cs should init as 10
+	
+	movff	POSTINC2, LCD_char_x, A	; x 	
+	
 	movf	INDF2, W, A	; y
 	movwf	pixel_y_start, A
-	incf	INDF2, W, A	; increase the pixel start after extraction
-	cpfseq	max_y, A	; clear if it has reached 128
-	clrf	POSTINC2, A 
+	incf	INDF2, A	; increase the y position indirectly
+	movf	INDF2, W, A	; extract new y position for tests
+	
+	cpfsgt	max_y, A	; will it reach 128?
+	clrf	INDF2, A	; set back to 0 if so
+	
+	movf	POSTINC2, A	; postinc called (but not used) after test to avoid errors
 	
 	movf	POSTINC2, W, A	; char
-	movlw	0x0
+	
+	movlw	0
 	movwf	pixel_count, A
 	call	pixel_loop
 	return
 pixel_loop:
-	movf	pixel_count, W, A
-	addwf	pixel_y_start, A    ; the y position of an individual pixel byte
-	movf	pixel_y_start, W, A
+	movff	CS1, LCD_cs, A		; set first CS
+	movf	pixel_count, W, A	; extract pixel number to W
+	addwf	pixel_y_start, W, A	; add to start position and store in W
+	movwf	pixel_y_total, A	; = abs y position of an individual pixel byte
+	movwf	pixel_y, A	
+	movlw	00111111B		; AND pixel_y_total to limit to 63
+	andwf	pixel_y, A		; = rel y position of an individual pixel byte
 	
-	cpfsgt	mid_y, A    ; if pixel exceeds 63 then execute next line
-	bra	toggle_cs	  
+	movf	pixel_y_total, W, A	; extract total for detail handling
 	
-	; if pixel does not exceed y = 63
-	bra	send_pixel
+	cpfsgt	mid_y, A	    ; exec next line if pixel_y_total >= 64
+	movff	CS2, LCD_cs, A	    ; CS2
 	
-toggle_cs:
-	comf	LCD_cs, A
-	movlw	00000011B
-	andwf	LCD_cs, A	; toggle the display
+	cpfsgt	max_y, A	    ; exec next line if pixel_y_total >= 128
+	movff	CS1, LCD_cs, A	    ; CS1
 	
-	call	LCD_Set_CS
-	movf	mid_y, W, A
-	subwf	pixel_y_start, A
-	movf	pixel_y_start, W, A
-	
-	bra	send_pixel
 
-send_pixel:
-	call	LCD_Set_Y
-	call	LCD_SetMode_Data
-	movf	POSTINC2, W, A	; pixel
-	call	LCD_Send_Byte_D
-	call	LCD_Enable
-	call	LCD_SetMode_Instruction
 	
-	incf	pixel_count, A
+	movf	pixel_y, W, A	    
+	call	send_pixel	    ; use ANDed y position
+	
+	incf	pixel_count, A	    ; next pixel
 	movlw	5
-	cpfseq	pixel_count, A
+	cpfseq	pixel_count, A	    ; after 5 pixels, return
 	bra	pixel_loop
+	
+	return
+	
+send_pixel:
+	call	LCD_Set_Y	    ; set Y to W register
+	movf	LCD_char_x, W, A
+	call	LCD_Set_X
+	
+	movf	POSTINC2, W, A	    ; pixel to be sent in W
+	call	LCD_Send_Byte_D	    ; send to D
+	call	LCD_SetMode_Data    ; set to data mode (RS high)
+	call	LCD_Enable	    ; pulse enable to send to GLCD
+	call	LCD_SetMode_Instruction	; set RS low to avoid errors
 	return
 	
 	
@@ -238,7 +242,7 @@ send_pixel:
 
 	
 LCD_Enable:	    ; pulse enable bit LCD_E for 500ns
-	movlw	40
+	movlw	10
 	call	LCD_delay_x4us
 	nop
 	nop
@@ -257,8 +261,6 @@ LCD_Enable:	    ; pulse enable bit LCD_E for 500ns
 	nop
 	nop
 	bsf	LATH, LCD_E, A	    ; Writes data to LCD
-	movlw	40
-	call	LCD_delay_x4us
 	return
     
 

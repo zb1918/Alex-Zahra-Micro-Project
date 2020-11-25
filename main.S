@@ -9,10 +9,10 @@ extrn	Timer_Int_Setup, Timer_Int_Low, Timer_Random_Number
 psect	data    
 	; ******* dataPM, data in programme memory, and its length *****
 dataPM:    ;    cont, page, xpos, ypos, char, 0   , 1   , 2   , 3   , 4   , 
-	db	0x00, 0x10, 0x00, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
-		0x00, 0x10, 0x01, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
-		0x00, 0x10, 0x02, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e
-
+	db	0x00, 0x10, 0x01, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
+		0x00, 0x10, 0x02, 0x0a, 0x05, 0x00, 0x84, 0x82, 0xff, 0x80,\
+		0x00, 0x10, 0x03, 0x20, 0x05, 0x00, 0xc2, 0xa1, 0x91, 0x8e
+		
 	dataPM_l   EQU	30	; length of data
 	align	2
 pixelPM:
@@ -38,7 +38,7 @@ pixelPM:
 ;;l1-l5 are just the information encoding the bit-pattern to write
 psect	udata_bank4 ; reserve data anywhere in RAM (here at 0x400)
 dataArray:  ds 0x80 ; reserve 128 bytes for message data
-pixelArray  EQU dataArray + 30
+pixelArray  EQU dataArray + 0x80
 
 psect	udata_acs   ; named variables in access ram 
 counter:	    ds 1
@@ -49,8 +49,6 @@ delay_count1:	    ds 1
 delay_count2:	    ds 1    
 delay_count3:	    ds 1
 rand_one:	    ds 1
-rand_two:	    ds 1
-rand_three:	    ds 1
 data_pos:	    ds 1
 pixel_byte:	    ds 1
 pixel_count:	    ds 1
@@ -118,7 +116,7 @@ pixel_loop:
 	movlw	3
 	movwf	character_count_max, A	; replacement goal
 	
-
+	
 replace_data:
 	call	delay
     	lfsr	0, pixelArray
@@ -161,14 +159,13 @@ loop_replace:
 	;; the FSR2L initially points at 0x00
 	
 	
-	
+	lfsr	2, dataArray
 Loop2:	
 	lfsr	2, dataArray
-	;call	GLCD_Main	;; GLCD_Main runs the game, and we keep branching back to it
+	call	GLCD_Main	;; GLCD_Main runs the game, and we keep branching back to it
 	call	delay		;;
 	;decfsz	counter2
 	bra	Loop2
-	movlw	0xff
 	movwf	PORTC, A		;; error handling to show visual sign that the game 
 	goto	$		;; has broken out of the loop
 	

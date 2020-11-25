@@ -23,7 +23,7 @@ Timer_Int_Setup:
 	bsf	GIE		    ; enable all interrupts
 	bcf	TMR0IF		    ; clear any flags for timer0
 	bcf	TMR0IP		    ; clear priority it ; this is low priority
-	movlw	5
+	movlw	3
 	movwf	min, A
 	movff	min, LATJ, A
 	movff	min, timer_rand_no, A
