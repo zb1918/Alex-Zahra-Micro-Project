@@ -211,6 +211,7 @@ character_loop:		; loops over one character in one frame
 	return
 
 pixel_clear:
+	call	Key_Reset_Data
 	movlw	2
 	subwf	FSR2L, A
 	clrf	POSTINC2, A
@@ -220,6 +221,11 @@ pixel_clear:
 	clrf	POSTINC2, A	;clears c, goes to d
 	clrf	POSTINC2, A	;clears d, goes to e
 	clrf	INDF2, A
+	movf	POSTDEC2, A	;go back to d
+	movf	POSTDEC2, A	;c
+	movf	POSTDEC2, A	;b
+	movf	POSTDEC2, A	;a	
+	
 	
 	return
 
