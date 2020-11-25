@@ -48,7 +48,7 @@ character_count_max:	ds 1
 delay_count1:	    ds 1    
 delay_count2:	    ds 1    
 delay_count3:	    ds 1
-rand_one:	    ds 1
+random_number:	    ds 1
 data_pos:	    ds 1
 pixel_byte:	    ds 1
 pixel_count:	    ds 1
@@ -127,26 +127,30 @@ replace_data:
 	mulwf	character_count, A	; multiply by 4 to obtain the reqired sub array of data
 	movff	PRODL, data_pos, A	; data_pos now contains relative pos to pixelArray
 	movlw	6		; this is pixel start position relative to beginning of data array
+	;movlw	5
 	addwf	data_pos, A	; data_pos now contains relative pos to dataArray
 	
 	call	Timer_Random_Number ; place random number in W
-	movwf	PORTC, A
-	movwf	rand_one, A
+	;movwf	POSTINC2, A
+	;incf	data_pos, A
+	
+	;movwf	PORTC, A
+	movwf	random_number, A
 	movlw	4		    	    
-	mulwf	rand_one, A	    ; multiply by 4 to obtain the reqired sub array of pixels
-	movff	PRODL, rand_one, A  ; rand_one is now rel pos to pixelArray
+	mulwf	random_number, A	    ; multiply by 4 to obtain the reqired sub array of pixels
+	movff	PRODL, random_number, A  ; random_number is now rel pos to pixelArray
 	movlw	5
 	movwf	pixel_count, A	    ; set pixel_count to 5 (no of pixels needed to change per character)
 	
 loop_replace:
-	movf	rand_one, W, A	    ; extract relative position to pixelArray
+	movf	random_number, W, A	    ; extract relative position to pixelArray
 	movf	PLUSW0, W, A	    ; extract single pixel byte
 	movwf	pixel_byte, A
 	movf	data_pos, W, A	    ; W now contains relative position to dataArray
 	movff	pixel_byte, PLUSW2, A	; move pixel to dataArray
 	
 	incf	data_pos, A
-	incf	rand_one, A	    ; increase rel position
+	incf	random_number, A	    ; increase rel position
 	decfsz	pixel_count, A
 	bra	loop_replace
 	
