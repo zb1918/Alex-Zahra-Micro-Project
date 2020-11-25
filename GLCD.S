@@ -3,7 +3,7 @@
 global  GLCD_Setup, GLCD_Clear, LCD_delay_x4us, LCD_delay_ms, GLCD_Main
 extrn	delay
 extrn	Int_Setup
-    
+extrn	Key_Return_Data, Key_Reset_Data
     
 psect	udata_acs   ; named variables in access ram
 LCD_cnt_l:	ds 1	; reserve 1 byte for variable LCD_cnt_l
@@ -17,6 +17,8 @@ LCD_y:		ds 1	; reserve 1 byte for y pos, 6 bits
 LCD_z:		ds 1	; reserve 1 byte for  z pos, 6 bits
 CS1:		ds 1	; reserve 1 byte for 10B
 CS2:		ds 1	; reserve 1 byte for 01B
+char_value:	ds 1
+keypress:	ds 1
 pixel_count:    ds 1	; reserve 1 byte to count pixels in a chaaracter
 pixel_y_start:  ds 1	; reserve 1 byte for character y start
 pixel_y_total:  ds 1	; reserve 1 byte for pixel y
@@ -174,7 +176,9 @@ char_test:
 	bra	char_test
 	return
 	
-character_loop:
+character_loop:		; loops over one character in one frame
+
+	
 	movf	POSTINC2, A	; control (unused)
 	movf	POSTINC2, A	; cs should init as 10
 	
@@ -190,12 +194,37 @@ character_loop:
 	
 	movf	POSTINC2, A	; postinc called (but not used) after test to avoid errors
 	
-	movf	POSTINC2, W, A	; char
+	movf	POSTINC2, W, A	; char bit extracted; this givess the value of the pixels i.e. what number
+	movwf	char_value, A
 	
 	movlw	0
-	movwf	pixel_count, A
-	call	pixel_loop
+	movwf	pixel_count, A	; start at pixel 0
+
+	keypress_test:		; has this character been pressed by user?
+	call	Key_Return_Data
+	movwf	keypress, A
+	xorwf	char_value, A
+	movlw	0
+	cpfsgt	char_value, A
+	call	pixel_clear    ; if they match, clear the pixels before proceeding
+	call	pixel_loop	    ; value and key press don't match so continue as normal
 	return
+
+pixel_clear:
+	movlw	2
+	subwf	FSR2L, A
+	clrf	POSTINC2, A
+	clrf	POSTINC2, A
+	clrf	POSTINC2, A	;clears a, goes to b
+	clrf	POSTINC2, A	;clears b, goes to c	
+	clrf	POSTINC2, A	;clears c, goes to d
+	clrf	POSTINC2, A	;clears d, goes to e
+	clrf	INDF2, A
+	
+	return
+
+	
+	
 pixel_loop:
 	movff	CS1, LCD_cs, A		; set first CS
 	movf	pixel_count, W, A	; extract pixel number to W
@@ -215,13 +244,12 @@ pixel_loop:
 	; note : order of operations is crucial; if y > 128, then y > 64
 	; must take care not to set CS2 for y > 128
 
-	
 	movf	pixel_y, W, A	    
 	call	send_pixel	    ; use ANDed y position to avoid errors  
 				    ; when Set_Y IORs with 01000000B
 	
 	incf	pixel_count, A	    ; next pixel
-	movlw	5
+	movlw	5		    ; number of pixels
 	cpfseq	pixel_count, A	    ; after 5 pixels, return
 	bra	pixel_loop
 	
@@ -238,6 +266,7 @@ send_pixel:			    ; W register should contain ANDed y position
 	call	LCD_Enable	    ; pulse enable to send to GLCD
 	call	LCD_SetMode_Instruction	; set RS low to avoid future errors
 	return
+
 	
 	
     

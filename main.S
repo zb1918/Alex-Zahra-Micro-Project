@@ -2,16 +2,16 @@
 
 global	delay, dataArray
 extrn	GLCD_Setup, GLCD_Clear, GLCD_Main
-extrn	Key_Setup, Key_Column, Key_Row
+extrn	Key_Setup, Key_Column_Tris, Key_Row_Tris, Key_Return_Data, Key_Reset_Data
 extrn	Int_Setup, B_Int
 extrn	Timer_Int_Setup, Timer_Int_Low, Timer_Random_Number
     
 psect	data    
 	; ******* dataPM, data in programme memory, and its length *****
 dataPM:    ;    cont, page, xpos, ypos, char, 0   , 1   , 2   , 3   , 4   , 
-	db	0x00, 0x10, 0x01, 0x00, 0x05, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
-		0x00, 0x10, 0x02, 0x0a, 0x05, 0x00, 0x84, 0x82, 0xff, 0x80,\
-		0x00, 0x10, 0x03, 0x20, 0x05, 0x00, 0xc2, 0xa1, 0x91, 0x8e
+	db	0x00, 0x10, 0x01, 0x00, 0x00, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
+		0x00, 0x10, 0x02, 0x0a, 0x01, 0x00, 0x84, 0x82, 0xff, 0x80,\
+		0x00, 0x10, 0x03, 0x20, 0x02, 0x00, 0xc2, 0xa1, 0x91, 0x8e
 		
 	dataPM_l   EQU	30	; length of data
 	align	2
@@ -58,10 +58,11 @@ rst: 	org 0x0
  	goto	setup
 	
 int_hi:	org	0x0008	; high vector, no low vector
-	btfss	INT0IF
-	retfie	f
 	call	B_Int
-	call	GLCD_Clear
+	bcf	INT0IF
+	bcf	INT1IF
+	bcf	INT2IF
+	bcf	INT3IF
 	retfie	f
 	
 int_lo:	org	0x0018		; low priority interrupts
@@ -72,9 +73,9 @@ setup:	bcf	CFGS		    ; point to Flash program memory
 	bcf	RBIF
 	bsf	EEPGD		    ; access Flash program memory
 	call	GLCD_Setup
-	call	Key_Setup
 	call	Int_Setup
 	call	Timer_Int_Setup	    ; set up timer interrupts (random no.)
+	call	Key_Setup
 	clrf	TRISC, A
 	call	GLCD_Clear	;; clear the GLCD screen
 	goto	start
@@ -111,28 +112,28 @@ pixel_loop:
 	bra	pixel_loop		; keep going until finished
 	
 	
+replace_data_master: ; maybe can call externally?	
+	movlw	3	
+	movwf	character_count_max, A	; replacement goal
 	movlw	0
 	movwf	character_count, A	; how many of the characters have been replaced?
-	movlw	3
-	movwf	character_count_max, A	; replacement goal
-	
-	
+
 replace_data:
 	call	delay
     	lfsr	0, pixelArray
 	lfsr	2, dataArray
 	
-	movlw	10
-	mulwf	character_count, A
+	movlw	10			; length of each character's sub array
+	mulwf	character_count, A	; multiply by 4 to obtain the reqired sub array of data
 	movff	PRODL, data_pos, A	; data_pos now contains relative pos to pixelArray
-	movlw	6
+	movlw	6		; this is pixel start position relative to beginning of data array
 	addwf	data_pos, A	; data_pos now contains relative pos to dataArray
 	
-	call	Timer_Random_Number ; random number in W
+	call	Timer_Random_Number ; place random number in W
 	movwf	PORTC, A
 	movwf	rand_one, A
-	movlw	4		    
-	mulwf	rand_one, A	    
+	movlw	4		    	    
+	mulwf	rand_one, A	    ; multiply by 4 to obtain the reqired sub array of pixels
 	movff	PRODL, rand_one, A  ; rand_one is now rel pos to pixelArray
 	movlw	5
 	movwf	pixel_count, A	    ; set pixel_count to 5 (no of pixels needed to change per character)
@@ -158,26 +159,18 @@ loop_replace:
 	;; reads out the message from program memory to data memory, 
 	;; the FSR2L initially points at 0x00
 	
-	
-	lfsr	2, dataArray
 Loop2:	
 	lfsr	2, dataArray
 	call	GLCD_Main	;; GLCD_Main runs the game, and we keep branching back to it
 	call	delay		;;
 	;decfsz	counter2
 	bra	Loop2
-	movwf	PORTC, A		;; error handling to show visual sign that the game 
+	;movwf	PORTC, A		;; error handling to show visual sign that the game 
 	goto	$		;; has broken out of the loop
 	
 	
-	
-    
-    
-    
-	
-	goto	$		; goto current line in code
 
-delay:	movlw	0x55
+delay:	movlw	0x44
 	movwf	delay_count1, A
 	movwf	delay_count2, A
 	movwf	delay_count3, A

@@ -13,7 +13,7 @@ max:			ds 1
 psect	timer_code, class=CODE	
    
 Timer_Int_Setup:
-	clrf	TRISJ, A	
+	;clrf	TRISJ, A	
 	clrf	timer_rand_no, A    
 	movlw	10001111B	    ; timer speed, Fcyc/x
 				    ; speeds are in 0:2 (16MHz - 62.5KHz)
@@ -25,7 +25,7 @@ Timer_Int_Setup:
 	bcf	TMR0IP		    ; clear priority it ; this is low priority
 	movlw	0
 	movwf	min, A
-	movff	min, LATJ, A
+	;movff	min, LATJ, A
 	movff	min, timer_rand_no, A
 	movlw	9
 	movwf	max, A
@@ -43,7 +43,7 @@ Timer_Int_Low:
 	cpfsgt	max, A			    ; has it reached max?
 	movff	min, timer_rand_no, A	    ; set back to min if maxed
 	incf	timer_rand_no, A	    ; increase
-	movff	timer_rand_no, LATJ, A	    ; display on J for debug purposes
+	;movff	timer_rand_no, LATJ, A	    ; display on J for debug purposes
 	bcf	TMR0IF			    ; clear interrupt flag
 	
 	;restore data from before interrupt
