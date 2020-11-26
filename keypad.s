@@ -1,7 +1,8 @@
 #include <xc.inc>
 
-global  Key_Setup, Key_Column_Tris, Key_Row_Tris, Key_Return_Data, Key_Reset_Data
+global  Key_Setup, Key_Column_Tris, Key_Row_Tris, Key_Return_Data, Key_Reset_Data,Key_Data
 global	Int_Setup, B_Int
+global  ADC_Setup, ADC_Read
 extrn	LCD_delay_x4us, LCD_delay_ms, GLCD_Clear
 extrn	delay
 psect	udata_acs   ; named variables in access ram
@@ -97,6 +98,10 @@ B_Int:
 	call	button_press		; returns the key number pressed
 	movwf	Key_Data, A
 	movwf	LATE, A			; debugging the Key_Data
+	bcf	INT0IF
+	bcf	INT1IF
+	bcf	INT2IF
+	bcf	INT3IF
 	return	
 	
 Key_Reset_Data:
@@ -163,6 +168,25 @@ button_0:
 Key_Fail:
 	retlw	0
 
+
+	
+ADC_Setup:
+	bsf	TRISA, PORTA_RA0_POSN, A  ; pin RA0==AN0 input
+	bsf	ANSEL0	    ; set AN0 to analog
+	movlw   0x01	    ; select AN0 for measurement
+	movwf   ADCON0, A   ; and turn ADC on
+	movlw   0x30	    ; Select 4.096V positive reference
+	movwf   ADCON1,	A   ; 0V for -ve reference and -ve input
+	movlw   0xF6	    ; Right justified output
+	movwf   ADCON2, A   ; Fosc/64 clock and acquisition times
+	return
+
+ADC_Read:
+	bsf	GO	    ; Start conversion by setting GO bit in ADCON0
+adc_loop:
+	btfsc   GO	    ; check to see if finished
+	bra	adc_loop
+	return
 
     end
 

@@ -1,10 +1,12 @@
 #include <xc.inc>
 
 global	delay, dataArray
+global	pixelPM, pixelArray
 extrn	GLCD_Setup, GLCD_Clear, GLCD_Main
 extrn	Key_Setup, Key_Column_Tris, Key_Row_Tris, Key_Return_Data, Key_Reset_Data
 extrn	Int_Setup, B_Int
 extrn	Timer_Int_Setup, Timer_Int_Low, Timer_Random_Number
+extrn	ADC_Setup, ADC_Read
     
 psect	data    
 	; ******* dataPM, data in programme memory, and its length *****
@@ -79,6 +81,7 @@ setup:	bcf	CFGS		    ; point to Flash program memory
 	call	Int_Setup
 	call	Timer_Int_Setup	    ; set up timer interrupts (random no.)
 	call	Key_Setup
+	call	ADC_Setup
 	clrf	TRISC, A
 	call	GLCD_Clear	;; clear the GLCD screen
 	goto	start
