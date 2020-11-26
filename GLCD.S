@@ -1,9 +1,10 @@
 #include <xc.inc>
     
 global  GLCD_Setup, GLCD_Clear, LCD_delay_x4us, LCD_delay_ms, GLCD_Main
-extrn	delay
+extrn	delay, pixelPM, pixelArray
 extrn	Int_Setup
-extrn	Key_Return_Data, Key_Reset_Data
+extrn	Key_Return_Data, Key_Reset_Data, Timer_Random_Number, Key_Data
+extrn	ADC_Setup, ADC_Read
     
 psect	udata_acs   ; named variables in access ram
 LCD_cnt_l:	ds 1	; reserve 1 byte for variable LCD_cnt_l
@@ -29,6 +30,9 @@ chars:		ds 1	; reserve 1 byte for number of characters
 LCD_char_x:	ds 1	; reserve 1 byte for x pos of character
 LCD_counter_x:  ds 1	; reserve 1 byte for LCD_Clear loop over x
 LCD_counter_y:  ds 1	; reserve 1 byte for LCD_Clear loop over y
+AlexVar:	ds 1
+AlexVar2:	ds 2
+AlexVar3:	ds 2
     
 LCD_E	EQU 4	; LCD enable bit
 	
@@ -206,27 +210,68 @@ character_loop:		; loops over one character in one frame
 	xorwf	char_value, A
 	movlw	0
 	cpfsgt	char_value, A
-	call	pixel_clear    ; if they match, clear the pixels before proceeding
+	bra	ALEXNEW    ; if they match, clear the pixels before proceeding
 	call	pixel_loop	    ; value and key press don't match so continue as normal
 	return
-
+	
+ALEXNEW:	
+	call	pixel_clear 
+	call	pixel_loop
+	call	Timer_Random_Number
+	movlw	6
+	clrf	TRISC
+	clrf	PORTC
+	subwf	FSR2L
+	movff	FSR0L, AlexVar2
+	call    ADC_Read
+	movff	ADRESL, AlexVar
+	movf	AlexVar, W
+	andlw	00000111B
+	movwf	AlexVar
+	movwf	INDF2
+	movlw	2
+	addwf	FSR2L
+	LFSR	0, pixelArray
+	movlw	4			
+	mulwf	AlexVar
+	movff	PRODL, AlexVar
+	movf	AlexVar, W
+	addwf	FSR0L
+	
+	movff	POSTINC0, POSTINC2
+	movff	POSTINC0, POSTINC2
+	movff	POSTINC0, POSTINC2
+	movff	POSTINC0, POSTINC2
+	
+	clrf	Key_Data
+	;movlw	1
+	;subwf	FSR2L
+	movff	AlexVar2, FSR0L
+	return
 pixel_clear:
 	call	Key_Reset_Data
+	movff	FSR2L, AlexVar3
 	movlw	2
-	subwf	FSR2L, A
+	subwf	FSR2L
+	movlw	1
+	movwf	INDF2
+	movlw	2
+	addwf	FSR2L
+	;movwf	PORTC		; start at FSR2 = 5
+	;goto	$
+	;movlw	5		; - 5 = 5
+	;subwf	FSR2L, A
+	;movf	FSR2L, W
+	;movwf	PORTC
+	;goto	$
 	clrf	POSTINC2, A
 	clrf	POSTINC2, A
-	clrf	POSTINC2, A	;clears a, goes to b
-	clrf	POSTINC2, A	;clears b, goes to c	
-	clrf	POSTINC2, A	;clears c, goes to d
-	clrf	POSTINC2, A	;clears d, goes to e
-	clrf	INDF2, A
-	movf	POSTDEC2, A	;go back to d
-	movf	POSTDEC2, A	;c
-	movf	POSTDEC2, A	;b
-	movf	POSTDEC2, A	;a	
+	clrf	POSTINC2, A	;
+	clrf	POSTINC2, A	;
+	clrf	POSTINC2, A	;clears all 5 lines
 	
 	
+	movff	AlexVar3, FSR2L
 	return
 
 	
