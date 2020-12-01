@@ -205,58 +205,58 @@ character_loop:		; loops over one character in one frame
 	movwf	pixel_count, A	; start at pixel 0
 
 	keypress_test:		; has this character been pressed by user?
-	call	Key_Return_Data	; if they match, clear the pixels before proceeding
+	call	Key_Return_Data
 	movwf	keypress, A
 	xorwf	char_value, A
 	movlw	0
 	cpfsgt	char_value, A
-	bra	ALEXNEW		    
+	bra	ALEXNEW    ; if they match, clear the pixels before proceeding
 	call	pixel_loop	    ; value and key press don't match so continue as normal
 	return
 	
 ALEXNEW:	
 	call	pixel_clear 
 	call	pixel_loop
-	;call	Timer_Random_Number
+	call	Timer_Random_Number
 	movlw	6
-	clrf	TRISC, A
-	clrf	PORTC, A
-	subwf	FSR2L, A
-	movff	FSR0L, AlexVar2, A
+	clrf	TRISC
+	clrf	PORTC
+	subwf	FSR2L
+	movff	FSR0L, AlexVar2
 	call    ADC_Read
-	movff	ADRESL, AlexVar, A
-	movf	AlexVar, W, A
+	movff	ADRESL, AlexVar
+	movf	AlexVar, W
 	andlw	00000111B
-	movwf	AlexVar, A
-	movwf	INDF2, A
+	movwf	AlexVar
+	movwf	INDF2
 	movlw	2
-	addwf	FSR2L, A
+	addwf	FSR2L
 	LFSR	0, pixelArray
 	movlw	4			
-	mulwf	AlexVar, A
-	movff	PRODL, AlexVar, A
-	movf	AlexVar, W, A
-	addwf	FSR0L, A
+	mulwf	AlexVar
+	movff	PRODL, AlexVar
+	movf	AlexVar, W
+	addwf	FSR0L
 	
 	movff	POSTINC0, POSTINC2
 	movff	POSTINC0, POSTINC2
 	movff	POSTINC0, POSTINC2
 	movff	POSTINC0, POSTINC2
 	
-	clrf	Key_Data, A
+	clrf	Key_Data
 	;movlw	1
 	;subwf	FSR2L
-	movff	AlexVar2, FSR0L, A
+	movff	AlexVar2, FSR0L
 	return
 pixel_clear:
 	call	Key_Reset_Data
-	movff	FSR2L, AlexVar3, A
+	movff	FSR2L, AlexVar3
 	movlw	2
-	subwf	FSR2L, A
+	subwf	FSR2L
 	movlw	1
-	movwf	INDF2, A
+	movwf	INDF2
 	movlw	2
-	addwf	FSR2L, A
+	addwf	FSR2L
 	;movwf	PORTC		; start at FSR2 = 5
 	;goto	$
 	;movlw	5		; - 5 = 5
