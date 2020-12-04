@@ -5,11 +5,11 @@ global	Int_Setup, B_Int
 global  ADC_Setup, ADC_Read
 extrn	LCD_delay_x4us, LCD_delay_ms, GLCD_Clear
 extrn	delay
-psect	udata_acs   ; named variables in access ram
-Key_Rdata:	ds 1
-Key_Cdata:	ds 1
-Key_Data:	ds 1  
-Row_Col_Byte:	ds 1
+psect	udata_acs	; named variables in access ram
+Key_Rdata:	ds 1	; stores row press data
+Key_Cdata:	ds 1	; stores column press data
+Key_Data:	ds 1	; stores value of key pressed
+Row_Col_Byte:	ds 1	; stores byte of column and row nibbles
 	
 
 
@@ -30,17 +30,16 @@ Key_Setup:
 	return
 
 Int_Setup:
-	bcf	RBPU
-	bcf	INTEDG0
-	bcf	INTEDG1
+	bcf	RBPU	    
+	bcf	INTEDG0		; set interrupt triggers when pulsed low
+	bcf	INTEDG1	    
 	bcf	INTEDG2
 	bcf	INTEDG3
 	
 	bsf	IPEN
 	
-	bsf	INT0IE
-	bcf	INT0IF
-	;bsf	INT0IP ; doesn't exist
+	bsf	INT0IE		; enable interrupts for each pin 0-3
+	bcf	INT0IF		; clear flags for each pin 0-3
 	
 	bsf	INT1IE
 	bcf	INT1IF
@@ -56,7 +55,7 @@ Int_Setup:
 	
 	bsf	RBIP
 	bsf	PEIE
-	bsf	GIE
+	bsf	GIE		; enable global interrupts
 	return
 	
 Key_Column_Tris:		; columns connected to J
@@ -79,14 +78,14 @@ Key_Row_Tris:			; rows connected to B
 	
 Key_Loop:
     	call	Key_Column_Tris
-	movff	PORTJ, Key_Cdata, A
+	movff	PORTJ, Key_Cdata, A ; extract column data
 	call	Key_Row_Tris
-	movff	PORTB, Key_Rdata, A
+	movff	PORTB, Key_Rdata, A ; extract row data
 
-	swapf	Key_Rdata, W, A	    ; since both J and B are in 0:3 respectively
+	swapf	Key_Rdata, W, A	    ; since both J and B are in 0:3 respectively, swap nibbles for row
 	iorwf	Key_Cdata, W, A	    
 	movwf	Row_Col_Byte, A
-	comf	Row_Col_Byte, A	    ; 0:3 contains row, 4:7 contains column
+	comf	Row_Col_Byte, A	    ; 4:7 contains row, 0:3 contains column
 
 	return
 	
@@ -96,7 +95,7 @@ B_Int:
 	
 	call	Key_Loop
 	clrf	TRISE, A
-	;movff	Row_Col_Byte, LATE, A	; debugging the Row_Col_Byte
+	;movff	Row_Col_Byte, LATE, A	; debugging the Row_Col_Byte on LatE
 	call	button_press		; returns the key number pressed
 	movwf	Key_Data, A
 	movwf	LATE, A			; debugging the Key_Data
@@ -106,16 +105,16 @@ B_Int:
 	bcf	INT3IF
 	return	
 	
-Key_Reset_Data:
+Key_Reset_Data:				; clear the key data externally
 	movlw	0
 	movwf	Key_Data, A
 	return
 	
-Key_Return_Data:
+Key_Return_Data:			; return key data externally
 	movf	Key_Data, W, A
 	return
 	
-button_press:
+button_press:	; polling for each key 0-9
 button_1:
 	movlw	10001000B
 	cpfseq	Row_Col_Byte, A
@@ -161,11 +160,11 @@ button_9:
 	cpfseq	Row_Col_Byte, A
 	bra	button_0
 	retlw	9
-button_0:
+button_0:	    ; error handling; nothing matches then set 99
 	movlw	00010100B
 	cpfseq	Row_Col_Byte, A
 	bra	Key_Fail
-	retlw	0
+	retlw	99
 
 Key_Fail:
 	retlw	0

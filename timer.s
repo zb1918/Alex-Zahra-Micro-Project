@@ -12,8 +12,7 @@ max:			ds 1
 	
 psect	timer_code, class=CODE	
    
-Timer_Int_Setup:
-	;clrf	TRISJ, A	
+Timer_Int_Setup:	
 	clrf	timer_rand_no, A    
 	movlw	10001111B	    ; timer speed, Fcyc/x
 				    ; speeds are in 0:2 (16MHz - 62.5KHz)
@@ -24,8 +23,7 @@ Timer_Int_Setup:
 	bcf	TMR0IF		    ; clear any flags for timer0
 	bcf	TMR0IP		    ; clear priority it ; this is low priority
 	movlw	0
-	movwf	min, A
-	;movff	min, LATJ, A
+	movwf	min, A		    ; set min and max for pseudo-random numbers
 	movff	min, timer_rand_no, A
 	movlw	9
 	movwf	max, A

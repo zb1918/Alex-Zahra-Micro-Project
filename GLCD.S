@@ -30,9 +30,9 @@ chars:		ds 1	; reserve 1 byte for number of characters
 LCD_char_x:	ds 1	; reserve 1 byte for x pos of character
 LCD_counter_x:  ds 1	; reserve 1 byte for LCD_Clear loop over x
 LCD_counter_y:  ds 1	; reserve 1 byte for LCD_Clear loop over y
-AlexVar:	ds 1
-AlexVar2:	ds 2
-AlexVar3:	ds 2
+pos_pixelArray:	ds 1	; following bytes reserved for storing addresses:
+pos_dataArray:	ds 2	
+pos_dataArray2:	ds 2
     
 LCD_E	EQU 4	; LCD enable bit
 	
@@ -52,21 +52,21 @@ GLCD_Setup:
 	movlw   10
 	call	LCD_delay_ms	; allow some time for PORTs and LATs to set
 	
-	movlw	64	    ; setting the mid and edge values for the GLCD 
+	movlw	64		; setting the mid and edge values for the GLCD 
 	movwf	mid_y, A
 	movlw	128
 	movwf	max_y, A
 	
-	movlw	00000010B   ; to allow for movff    CS1, LCD_cs, A
+	movlw	00000010B	; to allow for movff    CS1, LCD_cs, A
 	movwf	CS1, A
 	movlw	00000001B
 	movwf	CS2, A
 	
 	movlw	0x0
-	call	LCD_Set_CS  ; enable both halves of the display (both CS)
+	call	LCD_Set_CS	; enable both halves of the display (both CS)
 	
 
-	movlw	00111111B   ; init GLCD
+	movlw	00111111B	; init GLCD
 	call	LCD_Send_Byte_D
 	call	LCD_SetMode_Instruction
 	call	LCD_Enable
@@ -205,73 +205,68 @@ character_loop:		; loops over one character in one frame
 	movwf	pixel_count, A	; start at pixel 0
 
 	keypress_test:		; has this character been pressed by user?
-	call	Key_Return_Data	; if they match, clear the pixels before proceeding
+	call	Key_Return_Data	
 	movwf	keypress, A
 	xorwf	char_value, A
 	movlw	0
 	cpfsgt	char_value, A
-	bra	ALEXNEW		    
-	call	pixel_loop	    ; value and key press don't match so continue as normal
+	bra	pixel_replace	; replace pixels to new random number	    
+	call	pixel_loop	; value and key press don't match so continue as normal
 	return
 	
-ALEXNEW:	
+pixel_replace:	; subroutine to replace pixels by a new set if the correct key has been pressed
 	bcf	LATC, 1, A
 	
-	call	pixel_clear 
-	call	pixel_loop
-	;call	Timer_Random_Number
+	call	pixel_clear		    ; clear old pixels first
+	call	pixel_loop		    ; display the cleared versions
+	
+	;*** calculating positions of data and pixels to replace the data ***;
+	; data
 	movlw	6
-	subwf	FSR2L, A
-	movff	FSR0L, AlexVar2, A
-	call    ADC_Read
-	movff	ADRESL, AlexVar, A
-	movf	AlexVar, W, A
-	andlw	00000111B
-	movwf	AlexVar, A
-	movwf	INDF2, A
+	subwf	FSR2L, A	    
+	movff	FSR0L, pos_dataArray, A	    ; store the position of the beginning of dataArray
+	call    ADC_Read		    ; read ADC
+	movff	ADRESL, pos_pixelArray, A   ; store random number
+	movf	pos_pixelArray, W, A
+	andlw	00000111B		    ; limit random number to 7
+	movwf	pos_pixelArray, A
+	movwf	INDF2, A	    
 	movlw	2
-	addwf	FSR2L, A
+	addwf	FSR2L, A		    ; store dataArray relative position in FSR2
+	
+	; pixels
 	lfsr	0, pixelArray
-	movlw	4			
-	mulwf	AlexVar, A
-	movff	PRODL, AlexVar, A
-	movf	AlexVar, W, A
-	addwf	FSR0L, A
+	movlw	4			    ; calculate position of random number's pixels in pixelArray
+	mulwf	pos_pixelArray, A	    
+	movff	PRODL, pos_pixelArray, A
+	movf	pos_pixelArray, W, A
+	addwf	FSR0L, A		    ; store pixelArray relative position in FSR0
 	
+	;replace
+	movff	POSTINC0, POSTINC2	    ; transfer of data from pixelArray to dataArray
+	movff	POSTINC0, POSTINC2	    ;
 	movff	POSTINC0, POSTINC2
 	movff	POSTINC0, POSTINC2
-	movff	POSTINC0, POSTINC2
-	movff	POSTINC0, POSTINC2
-	
-	clrf	Key_Data, A
-	;movlw	1
-	;subwf	FSR2L
-	movff	AlexVar2, FSR0L, A
+
+	movff	pos_dataArray, FSR0L, A	; reset dataArray position
 	return
 pixel_clear:
-	call	Key_Reset_Data
-	movff	FSR2L, AlexVar3, A
+	call	Key_Reset_Data		; reset the key press data
+	movff	FSR2L, pos_dataArray2, A; store the position of FSR2
 	movlw	2
-	subwf	FSR2L, A
-	movlw	1
+	subwf	FSR2L, A		; goto y position
+	movlw	0			; reset the y position back to 0
 	movwf	INDF2, A
-	movlw	2
+	movlw	2			; go back to pixel bytes
 	addwf	FSR2L, A
-	;movwf	PORTC		; start at FSR2 = 5
-	;goto	$
-	;movlw	5		; - 5 = 5
-	;subwf	FSR2L, A
-	;movf	FSR2L, W
-	;movwf	PORTC
-	;goto	$
 	clrf	POSTINC2, A
 	clrf	POSTINC2, A
-	clrf	POSTINC2, A	;
-	clrf	POSTINC2, A	;
-	clrf	POSTINC2, A	;clears all 5 lines
+	clrf	POSTINC2, A		;
+	clrf	POSTINC2, A		;
+	clrf	POSTINC2, A		;clears all 5 lines
 	
 	
-	movff	AlexVar3, FSR2L
+	movff	pos_dataArray2, FSR2L	; reset position of FSR2
 	return
 
 	
@@ -300,7 +295,7 @@ pixel_loop:
 				    ; when Set_Y IORs with 01000000B
 	
 	incf	pixel_count, A	    ; next pixel
-	movlw	5		    ; number of pixels
+	movlw	5		    ; number of pixels total
 	cpfseq	pixel_count, A	    ; after 5 pixels, return
 	bra	pixel_loop
 	
