@@ -10,7 +10,7 @@ extrn	ADC_Setup, ADC_Read
     
 psect	data    
 	; ******* dataPM, data in programme memory, and its length *****
-dataPM:    ;    cont, page, xpos, ypos, char, 0   , 1   , 2   , 3   , 4   , 
+dataPM:    ;    cont, page, xpos, ypos, value, 0  ,  1  ,  2  ,  3  ,  4  , 
 	db	0x00, 0x10, 0x01, 0x00, 0x00, 0x00, 0x7e, 0x81, 0x81, 0x7e,\
 		0x00, 0x10, 0x02, 0x0a, 0x01, 0x00, 0x84, 0x82, 0xff, 0x80,\
 		0x00, 0x10, 0x03, 0x20, 0x02, 0x00, 0xc2, 0xa1, 0x91, 0x8e,\
@@ -77,6 +77,8 @@ int_lo:	org	0x0018		; low priority interrupts
 setup:	bcf	CFGS		    ; point to Flash program memory 
 	bcf	RBIF
 	bsf	EEPGD		    ; access Flash program memory
+	clrf	TRISC, A
+	clrf	LATC, A
 	call	GLCD_Setup
 	call	Int_Setup
 	call	Timer_Int_Setup	    ; set up timer interrupts (random no.)
@@ -175,6 +177,7 @@ loop_replace:
 	cpfseq	character_count_max, A
 	bra	replace_data
 	
+	bcf	LATC, 1, A
 	;; reads out the message from program memory to data memory, 
 	;; the FSR2L initially points at 0x00
 	
@@ -182,9 +185,8 @@ Loop2:
 	lfsr	2, dataArray
 	call	GLCD_Main	;; GLCD_Main runs the game, and we keep branching back to it
 	call	delay		;;
-	;decfsz	counter2
+	
 	bra	Loop2
-	;movwf	PORTC, A		;; error handling to show visual sign that the game 
 	goto	$		;; has broken out of the loop
 	
 	

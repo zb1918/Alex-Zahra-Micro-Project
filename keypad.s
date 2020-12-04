@@ -92,6 +92,8 @@ Key_Loop:
 	
 	
 B_Int:	
+	bsf	LATC, 1, A
+	
 	call	Key_Loop
 	clrf	TRISE, A
 	;movff	Row_Col_Byte, LATE, A	; debugging the Row_Col_Byte

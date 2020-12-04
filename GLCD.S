@@ -215,12 +215,12 @@ character_loop:		; loops over one character in one frame
 	return
 	
 ALEXNEW:	
+	bcf	LATC, 1, A
+	
 	call	pixel_clear 
 	call	pixel_loop
 	;call	Timer_Random_Number
 	movlw	6
-	clrf	TRISC, A
-	clrf	PORTC, A
 	subwf	FSR2L, A
 	movff	FSR0L, AlexVar2, A
 	call    ADC_Read
@@ -231,7 +231,7 @@ ALEXNEW:
 	movwf	INDF2, A
 	movlw	2
 	addwf	FSR2L, A
-	LFSR	0, pixelArray
+	lfsr	0, pixelArray
 	movlw	4			
 	mulwf	AlexVar, A
 	movff	PRODL, AlexVar, A
