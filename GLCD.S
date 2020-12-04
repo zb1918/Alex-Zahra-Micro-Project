@@ -1,10 +1,10 @@
 #include <xc.inc>
     
-global  GLCD_Setup, GLCD_Clear, LCD_delay_x4us, LCD_delay_ms, GLCD_Main, Score
+global  GLCD_Setup, GLCD_Clear, LCD_delay_x4us, LCD_delay_ms, GLCD_Main
 extrn	delay, pixelPM, pixelArray
-extrn	Int_Setup, Final1, Final2, Final3, Final4
+extrn	Int_Setup
 extrn	Key_Return_Data, Key_Reset_Data, Timer_Random_Number, Key_Data
-extrn	ADC_Setup, ADC_Read, Multi
+extrn	ADC_Setup, ADC_Read
     
 psect	udata_acs   ; named variables in access ram
 LCD_cnt_l:	ds 1	; reserve 1 byte for variable LCD_cnt_l
@@ -33,8 +33,6 @@ LCD_counter_y:  ds 1	; reserve 1 byte for LCD_Clear loop over y
 AlexVar:	ds 1
 AlexVar2:	ds 2
 AlexVar3:	ds 2
-Score:		ds 1
-tempdata:	ds 1
     
 LCD_E	EQU 4	; LCD enable bit
 	
@@ -59,8 +57,6 @@ GLCD_Setup:
 	movlw	128
 	movwf	max_y, A
 	
-	movlw	0   ;move the correct format for inital score
-	movwf	Score	    ;correspponds to a score of zero
 	movlw	00000010B   ; to allow for movff    CS1, LCD_cs, A
 	movwf	CS1, A
 	movlw	00000001B
@@ -179,70 +175,11 @@ GLCD_Main:
 	movlw	5	    ; number of characters (i.e full numbers)
 	movwf	chars, A
 char_test:
-	call	score_update
 	call 	character_loop
 	decfsz	chars, A
 	bra	char_test
 	return
 	
-score_update:
-	movff	FSR0L, AlexVar2		    ;store FSR0 in a temp var
-	movlw	1
-	movwf	LCD_cs
-	movlw	7
-	movwf	LCD_char_x
-	movlw	0
-	movwf	pixel_y
-	call	Multi
-	clrf	TRISC
-	movff	Final4, PORTC	;This corresponds to the 2nd digit
-	;movff	Final3, W	;this corresponds to the first digit
-	LFSR	0, pixelArray	;i.e. for a score of 9, Final 3 = 0, Final4 = 9
-				;for a score of 14, final3 = 1, final4 = 4
-				;for a score of 35, final3 = 3, final4 = 5
-	movlw	4			
-	mulwf	Final3
-	movff	PRODL, AlexVar
-	movf	AlexVar, W
-	addwf	FSR0L
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	
-	
-	LFSR	0, pixelArray	;i.e. for a score of 9, Final 3 = 0, Final4 = 9
-				;for a score of 14, final3 = 1, final4 = 4
-				;for a score of 35, final3 = 3, final4 = 5
-	movlw	6
-	movwf	pixel_y
-	movlw	4			
-	mulwf	Final4
-	movff	PRODL, AlexVar
-	movf	AlexVar, W
-	addwf	FSR0L
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	
-	
-	movff	AlexVar2, FSR0L	;restore the value of FSR0L
-	return
 character_loop:		; loops over one character in one frame
 
 	
@@ -268,59 +205,58 @@ character_loop:		; loops over one character in one frame
 	movwf	pixel_count, A	; start at pixel 0
 
 	keypress_test:		; has this character been pressed by user?
-	call	Key_Return_Data
+	call	Key_Return_Data	; if they match, clear the pixels before proceeding
 	movwf	keypress, A
 	xorwf	char_value, A
 	movlw	0
 	cpfsgt	char_value, A
-	bra	ALEXNEW    ; if they match, clear the pixels before proceeding
+	bra	ALEXNEW		    
 	call	pixel_loop	    ; value and key press don't match so continue as normal
 	return
 	
 ALEXNEW:	
 	call	pixel_clear 
 	call	pixel_loop
-	call	Timer_Random_Number
+	;call	Timer_Random_Number
 	movlw	6
-	clrf	TRISC
-	clrf	PORTC
-	subwf	FSR2L
-	movff	FSR0L, AlexVar2
+	clrf	TRISC, A
+	clrf	PORTC, A
+	subwf	FSR2L, A
+	movff	FSR0L, AlexVar2, A
 	call    ADC_Read
-	movff	ADRESL, AlexVar
-	movf	AlexVar, W
+	movff	ADRESL, AlexVar, A
+	movf	AlexVar, W, A
 	andlw	00000111B
-	movwf	AlexVar
-	movwf	INDF2
+	movwf	AlexVar, A
+	movwf	INDF2, A
 	movlw	2
-	addwf	FSR2L
+	addwf	FSR2L, A
 	LFSR	0, pixelArray
 	movlw	4			
-	mulwf	AlexVar
-	movff	PRODL, AlexVar
-	movf	AlexVar, W
-	addwf	FSR0L
+	mulwf	AlexVar, A
+	movff	PRODL, AlexVar, A
+	movf	AlexVar, W, A
+	addwf	FSR0L, A
 	
 	movff	POSTINC0, POSTINC2
 	movff	POSTINC0, POSTINC2
 	movff	POSTINC0, POSTINC2
 	movff	POSTINC0, POSTINC2
 	
-	clrf	Key_Data
+	clrf	Key_Data, A
 	;movlw	1
 	;subwf	FSR2L
-	movff	AlexVar2, FSR0L
-	incf	Score
+	movff	AlexVar2, FSR0L, A
 	return
 pixel_clear:
 	call	Key_Reset_Data
-	movff	FSR2L, AlexVar3
+	movff	FSR2L, AlexVar3, A
 	movlw	2
-	subwf	FSR2L
+	subwf	FSR2L, A
 	movlw	1
-	movwf	INDF2
+	movwf	INDF2, A
 	movlw	2
-	addwf	FSR2L
+	addwf	FSR2L, A
 	;movwf	PORTC		; start at FSR2 = 5
 	;goto	$
 	;movlw	5		; - 5 = 5
@@ -381,20 +317,7 @@ send_pixel:			    ; W register should contain ANDed y position
 	call	LCD_Enable	    ; pulse enable to send to GLCD
 	call	LCD_SetMode_Instruction	; set RS low to avoid future errors
 	return
-	
-send_pixel2:
-	movwf	tempdata
-	movf	pixel_y, W, A
-	call	LCD_Set_Y	    ; set Y to W register
-	movf	LCD_char_x, W, A
-	call	LCD_Set_X	    ; set X, this is required if cs# has changed
-	
-	movf	tempdata, W	    ; 
-	call	LCD_Send_Byte_D	    ; send to D
-	call	LCD_SetMode_Data    ; set to data mode (RS high)
-	call	LCD_Enable	    ; pulse enable to send to GLCD
-	call	LCD_SetMode_Instruction	; set RS low to avoid future errors
-	return
+
 	
 	
     
