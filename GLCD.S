@@ -1,40 +1,20 @@
 #include <xc.inc>
     
-global  GLCD_Setup, GLCD_Clear, LCD_delay_x4us, LCD_delay_ms, GLCD_Main, Score
+global  GLCD_Setup, GLCD_Clear, LCD_delay_x4us, Game_Main, Score
+global	LCD_SetMode_Instruction, LCD_Enable, LCD_SetMode_Data, LCD_Send_Byte_D, LCD_Set_X
+global	LCD_Set_Y
+;Reference external variables and subroutines required for this module
 extrn	delay, pixelPM, pixelArray
 extrn	Int_Setup, Final1, Final2, Final3, Final4
 extrn	Key_Return_Data, Key_Reset_Data, Timer_Random_Number, Key_Data
 extrn	ADC_Setup, ADC_Read, Multi
-    
+extrn	LCD_x, LCD_y, CS1, CS2, LCD_cs
+extrn	mid_y, max_y, LCD_counter_x, LCD_counter_y, Score
+;declare space for variables in access RAM  
 psect	udata_acs   ; named variables in access ram
 LCD_cnt_l:	ds 1	; reserve 1 byte for variable LCD_cnt_l
 LCD_cnt_h:	ds 1	; reserve 1 byte for variable LCD_cnt_h
-LCD_cnt_ms:	ds 1	; reserve 1 byte for ms counter
 LCD_tmp:	ds 1	; reserve 1 byte for temporary use
-LCD_cs:		ds 1	; reserve 1 byte for cs number 
-			; (10 or 01 for 1 or 2 respectively)
-LCD_x:		ds 1	; reserve 1 byte for x pos, 3 bits
-LCD_y:		ds 1	; reserve 1 byte for y pos, 6 bits
-LCD_z:		ds 1	; reserve 1 byte for  z pos, 6 bits
-CS1:		ds 1	; reserve 1 byte for 10B
-CS2:		ds 1	; reserve 1 byte for 01B
-char_value:	ds 1
-keypress:	ds 1
-pixel_count:    ds 1	; reserve 1 byte to count pixels in a chaaracter
-pixel_y_start:  ds 1	; reserve 1 byte for character y start
-pixel_y_total:  ds 1	; reserve 1 byte for pixel y
-pixel_y:	ds 1	; reserve 1 byte for pixel AND 63d
-mid_y:		ds 1	; reserve 1 byte for 63d
-max_y:		ds 1	; reserve 1 byte for 128d
-chars:		ds 1	; reserve 1 byte for number of characters
-LCD_char_x:	ds 1	; reserve 1 byte for x pos of character
-LCD_counter_x:  ds 1	; reserve 1 byte for LCD_Clear loop over x
-LCD_counter_y:  ds 1	; reserve 1 byte for LCD_Clear loop over y
-AlexVar:	ds 1
-AlexVar2:	ds 2
-AlexVar3:	ds 2
-Score:		ds 1
-tempdata:	ds 1
     
 LCD_E	EQU 4	; LCD enable bit
 	
@@ -51,15 +31,13 @@ GLCD_Setup:
 	clrf    PORTH, A
 	clrf	PORTD, A
 	
-	movlw   10
-	call	LCD_delay_ms	; allow some time for PORTs and LATs to set
 	
 	movlw	64	    ; setting the mid and edge values for the GLCD 
 	movwf	mid_y, A
 	movlw	128
 	movwf	max_y, A
 	
-	movlw	0   ;move the correct format for inital score
+	movlw	0	    ;move the correct format for inital score
 	movwf	Score	    ;correspponds to a score of zero
 	movlw	00000010B   ; to allow for movff    CS1, LCD_cs, A
 	movwf	CS1, A
@@ -166,243 +144,10 @@ LCD_Set_Y:		    ; sets column
 	call	LCD_Enable
 	return
 	
-LCD_Set_Z:		    ; sets the starting position (unused) 
-	movwf	LCD_z, A
-	movlw	11000000B   ; instruction for set z
-	iorwf	LCD_z, W, A ; add on the address on the end (last 6 bits)
-	call	LCD_Send_Byte_D
-	call	LCD_SetMode_Instruction
-	call	LCD_Enable
-	return
-    
-GLCD_Main:
-	movlw	5	    ; number of characters (i.e full numbers)
-	movwf	chars, A
-char_test:
-	call	score_update
-	call 	character_loop
-	decfsz	chars, A
-	bra	char_test
-	return
-	
-score_update:
-	movff	FSR0L, AlexVar2		    ;store FSR0 in a temp var
-	movlw	1
-	movwf	LCD_cs
-	movlw	7
-	movwf	LCD_char_x
-	movlw	0
-	movwf	pixel_y
-	call	Multi
-	clrf	TRISC
-	movff	Final4, PORTC	;This corresponds to the 2nd digit
-	;movff	Final3, W	;this corresponds to the first digit
-	LFSR	0, pixelArray	;i.e. for a score of 9, Final 3 = 0, Final4 = 9
-				;for a score of 14, final3 = 1, final4 = 4
-				;for a score of 35, final3 = 3, final4 = 5
-	movlw	4			
-	mulwf	Final3
-	movff	PRODL, AlexVar
-	movf	AlexVar, W
-	addwf	FSR0L
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	
-	
-	LFSR	0, pixelArray	;i.e. for a score of 9, Final 3 = 0, Final4 = 9
-				;for a score of 14, final3 = 1, final4 = 4
-				;for a score of 35, final3 = 3, final4 = 5
-	movlw	6
-	movwf	pixel_y
-	movlw	4			
-	mulwf	Final4
-	movff	PRODL, AlexVar
-	movf	AlexVar, W
-	addwf	FSR0L
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	incf	pixel_y
-	movf	POSTINC0, W
-	call	send_pixel2
-	
-	
-	movff	AlexVar2, FSR0L	;restore the value of FSR0L
-	return
-character_loop:		; loops over one character in one frame
-
-	
-	movf	POSTINC2, A	; control (unused)
-	movf	POSTINC2, A	; cs should init as 10
-	
-	movff	POSTINC2, LCD_char_x, A	; x stored for future use for character	
-	
-	movf	INDF2, W, A	; y
-	movwf	pixel_y_start, A
-	incf	INDF2, A	; increase the y position indirectly
-	movf	INDF2, W, A	; extract new y position for tests
-	
-	cpfsgt	max_y, A	; will it reach 128?
-	clrf	INDF2, A	; set back to 0 if so
-	
-	movf	POSTINC2, A	; postinc called (but not used) after test to avoid errors
-	
-	movf	POSTINC2, W, A	; char bit extracted; this givess the value of the pixels i.e. what number
-	movwf	char_value, A
-	
-	movlw	0
-	movwf	pixel_count, A	; start at pixel 0
-
-	keypress_test:		; has this character been pressed by user?
-	call	Key_Return_Data
-	movwf	keypress, A
-	xorwf	char_value, A
-	movlw	0
-	cpfsgt	char_value, A
-	bra	ALEXNEW    ; if they match, clear the pixels before proceeding
-	call	pixel_loop	    ; value and key press don't match so continue as normal
-	return
-	
-ALEXNEW:	
-	call	pixel_clear 
-	call	pixel_loop
-	call	Timer_Random_Number
-	movlw	6
-	clrf	TRISC
-	clrf	PORTC
-	subwf	FSR2L
-	movff	FSR0L, AlexVar2
-	call    ADC_Read
-	movff	ADRESL, AlexVar
-	movf	AlexVar, W
-	andlw	00000111B
-	movwf	AlexVar
-	movwf	INDF2
-	movlw	2
-	addwf	FSR2L
-	LFSR	0, pixelArray
-	movlw	4			
-	mulwf	AlexVar
-	movff	PRODL, AlexVar
-	movf	AlexVar, W
-	addwf	FSR0L
-	
-	movff	POSTINC0, POSTINC2
-	movff	POSTINC0, POSTINC2
-	movff	POSTINC0, POSTINC2
-	movff	POSTINC0, POSTINC2
-	
-	clrf	Key_Data
-	;movlw	1
-	;subwf	FSR2L
-	movff	AlexVar2, FSR0L
-	incf	Score
-	return
-pixel_clear:
-	call	Key_Reset_Data
-	movff	FSR2L, AlexVar3
-	movlw	2
-	subwf	FSR2L
-	movlw	1
-	movwf	INDF2
-	movlw	2
-	addwf	FSR2L
-	;movwf	PORTC		; start at FSR2 = 5
-	;goto	$
-	;movlw	5		; - 5 = 5
-	;subwf	FSR2L, A
-	;movf	FSR2L, W
-	;movwf	PORTC
-	;goto	$
-	clrf	POSTINC2, A
-	clrf	POSTINC2, A
-	clrf	POSTINC2, A	;
-	clrf	POSTINC2, A	;
-	clrf	POSTINC2, A	;clears all 5 lines
-	
-	
-	movff	AlexVar3, FSR2L
-	return
-
-	
-	
-pixel_loop:
-	movff	CS1, LCD_cs, A		; set first CS
-	movf	pixel_count, W, A	; extract pixel number to W
-	addwf	pixel_y_start, W, A	; add to start position and store in W
-	movwf	pixel_y_total, A	; = abs y position of an individual pixel byte
-	movwf	pixel_y, A	
-	movlw	00111111B		; AND pixel_y_total to limit to 63
-	andwf	pixel_y, A		; = rel y position of an individual pixel byte
-	
-	movf	pixel_y_total, W, A	; extract total for detail handling
-	
-	cpfsgt	mid_y, A		; exec next line if pixel_y_total >= 64
-	movff	CS2, LCD_cs, A		; CS2
-	
-	cpfsgt	max_y, A		; exec next line if pixel_y_total >= 128
-	movff	CS1, LCD_cs, A		; CS1
-	; note : order of operations is crucial; if y > 128, then y > 64
-	; must take care not to set CS2 for y > 128
-
-	movf	pixel_y, W, A	    
-	call	send_pixel	    ; use ANDed y position to avoid errors  
-				    ; when Set_Y IORs with 01000000B
-	
-	incf	pixel_count, A	    ; next pixel
-	movlw	5		    ; number of pixels
-	cpfseq	pixel_count, A	    ; after 5 pixels, return
-	bra	pixel_loop
-	
-	return
-	
-send_pixel:			    ; W register should contain ANDed y position
-	call	LCD_Set_Y	    ; set Y to W register
-	movf	LCD_char_x, W, A
-	call	LCD_Set_X	    ; set X, this is required if cs# has changed
-	
-	movf	POSTINC2, W, A	    ; pixel to be sent in W
-	call	LCD_Send_Byte_D	    ; send to D
-	call	LCD_SetMode_Data    ; set to data mode (RS high)
-	call	LCD_Enable	    ; pulse enable to send to GLCD
-	call	LCD_SetMode_Instruction	; set RS low to avoid future errors
-	return
-	
-send_pixel2:
-	movwf	tempdata
-	movf	pixel_y, W, A
-	call	LCD_Set_Y	    ; set Y to W register
-	movf	LCD_char_x, W, A
-	call	LCD_Set_X	    ; set X, this is required if cs# has changed
-	
-	movf	tempdata, W	    ; 
-	call	LCD_Send_Byte_D	    ; send to D
-	call	LCD_SetMode_Data    ; set to data mode (RS high)
-	call	LCD_Enable	    ; pulse enable to send to GLCD
-	call	LCD_SetMode_Instruction	; set RS low to avoid future errors
-	return
-	
-	
-    
-
 	
 LCD_Enable:			     ; pulse enable bit LCD_E for 500ns
-	movlw	10
-	call	LCD_delay_x4us	    ; delay for 40us
+	movlw	1
+	call	LCD_delay_x4us	    ; delay for 4us
 	nop
 	nop
 	nop
@@ -422,20 +167,7 @@ LCD_Enable:			     ; pulse enable bit LCD_E for 500ns
 	bsf	LATH, LCD_E, A	    ; Take enable back high
 	return
     
-
-	
-	
-	
-	
-	
 ; ** a few delay routines below here as GLCD timing can be quite critical ****
-LCD_delay_ms:		    ; delay given in ms in W
-	movwf	LCD_cnt_ms, A
-lcdlp2:	movlw	250	    ; 1 ms delay
-	call	LCD_delay_x4us	
-	decfsz	LCD_cnt_ms, A
-	bra	lcdlp2
-	return
     
 LCD_delay_x4us:		    ; delay given in chunks of 4 microsecond in W
 	movwf	LCD_cnt_l, A	; now need to multiply by 16
