@@ -3,20 +3,18 @@
 global  Key_Setup, Key_Column_Tris, Key_Row_Tris, Key_Return_Data, Key_Reset_Data,Key_Data
 global	Int_Setup, B_Int
 
-
-extrn	LCD_delay_x4us, LCD_delay_ms, GLCD_Clear
+;Reference external variables and subroutines required for this module
+extrn	LCD_delay_x4us, GLCD_Clear
 extrn	delay, Score
+    
+;declare space for variables in access RAM  
 psect	udata_acs   ; named variables in access ram
 Key_Rdata:	ds 1
 Key_Cdata:	ds 1
 Key_Data:	ds 1  
 Row_Col_Byte:	ds 1
 
-
-
 psect	key_code,class=CODE
-    
-
 Key_Setup:
 	banksel PADCFG1	    ; PADCFG1 is not in Access Bank!!
 	bcf	RBPU	    ; PortE pull-ups on
@@ -32,16 +30,15 @@ Key_Setup:
 
 Int_Setup:
 	bcf	RBPU
-	bcf	INTEDG0
+	bcf	INTEDG0	    ; set interrupt triggers when pulsed low
 	bcf	INTEDG1
 	bcf	INTEDG2
 	bcf	INTEDG3
 	
 	bsf	IPEN
 	
-	bsf	INT0IE
-	bcf	INT0IF
-	;bsf	INT0IP ; doesn't exist
+	bsf	INT0IE	    ; enable interrupts for each pin 0-3
+	bcf	INT0IF	    ; clear flags for each pin 0-3
 	
 	bsf	INT1IE
 	bcf	INT1IF
@@ -57,7 +54,7 @@ Int_Setup:
 	
 	bsf	RBIP
 	bsf	PEIE
-	bsf	GIE
+	bsf	GIE	    ; enable global interrupts
 	return
 	
 Key_Column_Tris:		; columns connected to J
@@ -80,9 +77,9 @@ Key_Row_Tris:			; rows connected to B
 	
 Key_Loop:
     	call	Key_Column_Tris
-	movff	PORTJ, Key_Cdata, A
+	movff	PORTJ, Key_Cdata, A	; extract column data
 	call	Key_Row_Tris
-	movff	PORTB, Key_Rdata, A
+	movff	PORTB, Key_Rdata, A	; extract row data
 
 	swapf	Key_Rdata, W, A	    ; since both J and B are in 0:3 respectively
 	iorwf	Key_Cdata, W, A	    
@@ -95,26 +92,24 @@ Key_Loop:
 B_Int:	
 	call	Key_Loop
 	clrf	TRISE, A
-	;movff	Row_Col_Byte, LATE, A	; debugging the Row_Col_Byte
 	call	button_press		; returns the key number pressed
 	movwf	Key_Data, A
-	movwf	LATE, A			; debugging the Key_Data
 	bcf	INT0IF
 	bcf	INT1IF
 	bcf	INT2IF
 	bcf	INT3IF
 	return	
 	
-Key_Reset_Data:
+Key_Reset_Data:				; clear the key data externally
 	movlw	0
 	movwf	Key_Data, A
 	return
 	
-Key_Return_Data:
+Key_Return_Data:			; return key data externally
 	movf	Key_Data, W, A
 	return
 	
-button_press:
+button_press:				; polling for each key 0-9
 button_1:
 	movlw	10001000B
 	cpfseq	Row_Col_Byte, A
@@ -160,7 +155,7 @@ button_9:
 	cpfseq	Row_Col_Byte, A
 	bra	button_0
 	retlw	9
-button_0:
+button_0:		    
 	movlw	00010100B
 	cpfseq	Row_Col_Byte, A
 	bra	Key_Fail
