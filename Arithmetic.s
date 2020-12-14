@@ -3,8 +3,11 @@
 global	Timer_Int_Setup, Timer_Int_Low, Timer_Random_Number
 global  ADC_Setup, ADC_Read
 global	Final1, Final2, Final3, Final4, Multi
-    
+;Reference external variables and subroutines required for this module
 extrn	Score
+    
+    
+;declare space for variables in access RAM  
 psect	udata_acs
 timer_w_temp:		ds 1
 timer_stat_temp:	ds 1
@@ -14,30 +17,32 @@ min:			ds 1
 max:			ds 1
     
     
-    
-Multi_1a:	ds 1    ; reserve 1 byte for variable 1
-Multi_1b:	ds 1    ; reserve 1 byte for variable 2
-Multi_2a:	ds 1    ; reserve 1 byte for variable 3
-Multi_3a:	ds 1    ; reserve 1 byte for variable 3
-In_1a:		ds 1    ; reserve 1 byte for variable 3
-In_1b:		ds 1    ; reserve 1 byte for variable 3
-In_2a:		ds 1    ; reserve 1 byte for variable 3
-In_2b:		ds 1    ; reserve 1 byte for variable 3
-In_3a:		ds 1    ; reserve 1 byte for variable 3 
-Col_1a:		ds 1    ; reserve 1 byte for variable 4
-Col_2a:		ds 1    ; reserve 1 byte for variable 4    
-Col_2b:		ds 1    ; reserve 1 byte for variable 4	
-Col_3a:		ds 1    ; reserve 1 byte for variable 4
-Col_3b:		ds 1    ; reserve 1 byte for variable 4
-Col_4a:		ds 1    ; reserve 1 byte for variable 4
-Res_1a:		ds 1    ; reserve 1 byte for variable 4	
-Res_2a:		ds 1    ; reserve 1 byte for variable 4	
-Res_3a:		ds 1    ; reserve 1 byte for variable 4
-Res_4a:		ds 1    ; reserve 1 byte for variable 4	    
-Out_1a:		ds 1    ; reserve 1 byte for variable 4	
-Out_2a:		ds 1    ; reserve 1 byte for variable 4	
-Out_3a:		ds 1    ; reserve 1 byte for variable 4	
-Out_4a:		ds 1    ; reserve 1 byte for variable 4	
+;The following set of variables are all temporary variable where stages of the computation are stored
+;Code is currently very memory inefficient, and has been largely recycled from the ADC code I wrote earlier
+;If time permits, will tidy up/increase efficiency
+Multi_1a:	ds 1    
+Multi_1b:	ds 1    
+Multi_2a:	ds 1    
+Multi_3a:	ds 1    
+In_1a:		ds 1    
+In_1b:		ds 1    
+In_2a:		ds 1    
+In_2b:		ds 1    
+In_3a:		ds 1     
+Col_1a:		ds 1    
+Col_2a:		ds 1        
+Col_2b:		ds 1    	
+Col_3a:		ds 1    
+Col_3b:		ds 1    
+Col_4a:		ds 1    
+Res_1a:		ds 1    	
+Res_2a:		ds 1    	
+Res_3a:		ds 1   
+Res_4a:		ds 1        
+Out_1a:		ds 1    	
+Out_2a:		ds 1    	
+Out_3a:		ds 1    	
+Out_4a:		ds 1    
 Final1:		ds 1	
 Final2:		ds 1
 Final3:		ds 1
@@ -45,8 +50,7 @@ Final4:		ds 1
 	
 psect	timer_code, class=CODE	
    
-Timer_Int_Setup:
-	;clrf	TRISJ, A	
+Timer_Int_Setup:	
 	clrf	timer_rand_no, A    
 	movlw	10001111B	    ; timer speed, Fcyc/x
 				    ; speeds are in 0:2 (16MHz - 62.5KHz)
@@ -57,8 +61,7 @@ Timer_Int_Setup:
 	bcf	TMR0IF		    ; clear any flags for timer0
 	bcf	TMR0IP		    ; clear priority it ; this is low priority
 	movlw	0
-	movwf	min, A
-	;movff	min, LATJ, A
+	movwf	min, A		    ; set min and max for pseudo-random numbers
 	movff	min, timer_rand_no, A
 	movlw	9
 	movwf	max, A
@@ -76,7 +79,6 @@ Timer_Int_Low:
 	cpfsgt	max, A			    ; has it reached max?
 	movff	min, timer_rand_no, A	    ; set back to min if maxed
 	incf	timer_rand_no, A	    ; increase
-	;movff	timer_rand_no, LATJ, A	    ; display on J for debug purposes
 	bcf	TMR0IF			    ; clear interrupt flag
 	
 	;restore data from before interrupt
@@ -92,26 +94,26 @@ Timer_Random_Number:
 
 	
 ADC_Setup:
-	bsf	TRISA, PORTA_RA0_POSN, A  ; pin RA0==AN0 input
-	bsf	ANSEL0	    ; set AN0 to analog
-	movlw   0x01	    ; select AN0 for measurement
-	movwf   ADCON0, A   ; and turn ADC on
-	movlw   0x30	    ; Select 4.096V positive reference
-	movwf   ADCON1,	A   ; 0V for -ve reference and -ve input
-	movlw   0xF6	    ; Right justified output
-	movwf   ADCON2, A   ; Fosc/64 clock and acquisition times
+	bsf	TRISA, PORTA_RA0_POSN, A    ; pin RA0==AN0 input
+	bsf	ANSEL0			    ; set AN0 to analog
+	movlw   0x01			    ; select AN0 for measurement
+	movwf   ADCON0, A		    ; and turn ADC on
+	movlw   0x30			    ; Select 4.096V positive reference
+	movwf   ADCON1,	A		    ; 0V for -ve reference and -ve input
+	movlw   0xF6			    ; Right justified output
+	movwf   ADCON2, A		    ; Fosc/64 clock and acquisition times
 	return
 
 ADC_Read:
-	bsf	GO	    ; Start conversion by setting GO bit in ADCON0
+	bsf	GO			    ; Start conversion by setting GO bit in ADCON0
 adc_loop:
-	btfsc   GO	    ; check to see if finished
+	btfsc   GO			    ; check to see if finished
 	bra	adc_loop
 	return
 	
 	
-	
-	
+;Arithmetic computation sections
+;This function multiplies an 8bit number by a 16bit number
 Eight_16:
 	clrf	TRISH
 	movf	Multi_1a, W
@@ -129,9 +131,9 @@ Eight_16:
 	movlw	0x00
 	addwfc	Col_3a, W
 	movwf	Res_3a
-	;goto	$
 	return
 	
+;This function uses the previous subroutine to multiply two 16 bit numbers together
 Sixteen_16:
 	movff	In_1a, Multi_1a
 	movff	In_1b, Multi_1b
@@ -153,6 +155,7 @@ Sixteen_16:
 	movwf	Out_4a, A
 	return
 
+;This subroutine multiplies an 8bit number by a 24bit number
 Eight_24:
 	movff	In_1a, Multi_1a
 	movff	In_2a, Multi_2a
@@ -181,16 +184,15 @@ Eight_24:
 	addwfc	Col_4a, W
 	movwf	Out_4a
 	return
-	
+
+;This subroutine uses the arithmetic computation subroutines to split the score up
+;into its consituent decimal digits, ready for sending to the GLCD scoreboard
 Multi:
 	movlw	00000100B
 	movwf	In_2a
 	movlw	01001100B
 	addwf	Score, W
 	movwf	In_1a
-	clrf	TRISF
-	movwf	PORTF
-	;movff	Score, In_1a
 	movlw	0x0F
 	andwf	In_2a, F
 	movlw	0x8A
@@ -200,7 +202,6 @@ Multi:
 	call	Sixteen_16
 	movf	Out_4a, W
 	movwf	Final1
-	;call	LCD_Send_Byte_D
 	movff	Out_1a, In_1a
 	movff	Out_2a, In_2a
 	movff	Out_3a, In_3a
@@ -209,7 +210,6 @@ Multi:
 	call	Eight_24
 	movf	Out_4a, W
 	movwf	Final2
-	;call	LCD_Send_Byte_D
 	movff	Out_1a, In_1a
 	movff	Out_2a, In_2a
 	movff	Out_3a, In_3a
@@ -218,7 +218,6 @@ Multi:
 	call	Eight_24
 	movf	Out_4a, W
 	movwf	Final3
-	;call	LCD_Send_Byte_D
 	movff	Out_1a, In_1a
 	movff	Out_2a, In_2a
 	movff	Out_3a, In_3a
@@ -226,7 +225,4 @@ Multi:
 	movwf	In_1b
 	call	Eight_24
 	movf	Out_4a, W
-	movwf	Final4	; 
-	;call	LCD_Send_Byte_D
-	;call	delay
 	return
