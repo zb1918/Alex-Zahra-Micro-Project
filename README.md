@@ -1,8 +1,6 @@
 # Microprocessors
-Repository for Physics Year 3 microprocessors lab
+Repository for Physics Year 3 microprocessors lab project for Alex and Zahra
 
-A simple assembly program for PIC18 microprocessor
+A simple numbers game written in assembly language for a PIC18 microprocessor
 
-Reads a table (message) from programme memory to data memory
 
-Initialises UART and writes a message (the table) to UART 
